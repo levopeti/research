@@ -1,0 +1,10 @@
+population_size: 4
+chromosome_size: 7850 # 43200
+generations: 100
+patience: 1000
+mutation_probability: 0.2
+pool_size: 4
+lamarck: False
+pool: True
+thread: False
+

@@ -52,7 +52,7 @@ class FitnessFunction(object):
             self.fitness_function = self.fitness_func5
 
     def calculate(self, individual, acc=False):
-        return self.fitness_function(individual, acc=acc)
+        return self.fitness_function(individual, acc)
 
     @staticmethod
     def fitness_func1(individual, acc=False):
@@ -76,15 +76,19 @@ class FitnessFunction(object):
         return dist
 
     def fitness_func5(self, individual, acc=False):
-        W = np.reshape(np.array(individual.genes[:7840]), (784, 10))
-        b = np.array(individual.genes[-10:])
-        self.model.set_w(W)
-        self.model.set_b(b)
-        loss, accurate = self.model.evaluate(acc)
+        self.model.set_weights(individual.genes)
+        loss, accurate = self.model.evaluate()
 
         if acc:
             return loss, accurate
         else:
             return loss
 
+    def train_steps(self, number_of_steps):
+        def t_s_in(individual):
+            self.model.set_weights(individual.genes)
+            for _ in range(number_of_steps):
+                self.model.train_step()
+            return self.model.get_weights_as_genes()
 
+        return t_s_in

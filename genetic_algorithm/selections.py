@@ -1,4 +1,5 @@
 import random
+import numpy as np
 
 from operator import attrgetter
 from chromosome import Chromosome
@@ -35,8 +36,10 @@ def crossover(population, selection):
     parent_2 = selection(population)
 
     crossover_index = random.randrange(1, population.chrom_size - 1)
-    child_1.genes = parent_1.genes[:crossover_index] + parent_2.genes[crossover_index:]
-    child_2.genes = parent_2.genes[:crossover_index] + parent_1.genes[crossover_index:]
+    # child_1.genes = parent_1.genes[:crossover_index] + parent_2.genes[crossover_index:]
+    # child_2.genes = parent_2.genes[:crossover_index] + parent_1.genes[crossover_index:]
+    child_1.genes = np.concatenate((parent_1.genes[:crossover_index], parent_2.genes[crossover_index:]), axis=None)
+    child_2.genes = np.concatenate((parent_2.genes[:crossover_index], parent_1.genes[crossover_index:]), axis=None)
 
     child_1.fitness = child_1.calculate_fitness()
     child_2.fitness = child_2.calculate_fitness()

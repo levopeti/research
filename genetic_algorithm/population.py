@@ -5,6 +5,8 @@ from operator import attrgetter
 class Population(object):
     """ Population class that encapsulates all of the chromosomes.
     """
+    __slots__ = "current_generation", "pop_size", "chrom_size", "counter", "fitness_function"
+
     def __init__(self, pop_size, chrom_size, fitness_function):
         """Initialise the Population."""
         self.current_generation = []

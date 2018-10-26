@@ -81,14 +81,12 @@ class GeneticAlgorithm(object):
         """
 
         self.create_new_population()
-        self.population.rank_population()
+        if self.lamarck:
+            self.local_search()
         self.mutation()
         self.calculate_population_fitness()
         self.population.rank_population()
         self.population.insp_pop_size()
-
-        if self.lamarck:
-            self.local_search()
 
     def run(self):
         """Run (solve) the Genetic Algorithm."""
@@ -106,17 +104,11 @@ class GeneticAlgorithm(object):
                 print('best fitness values: ', [self.population.get_all()[j].fitness for j in range(8 if self.population_size >= 8 else self.population_size)])
                 # print('best member: ', max(self.population.get_the_best().genes), min(self.population.get_the_best().genes))
 
-                # _, acc = self.fitness_function(self.population.get_the_best(), acc=True)
-                # print('Accurate: {0:.2f}%'.format(acc * 100))
+                loss, acc = self.fitness_function(self.population.get_the_best(), acc=True)
+                print("Accurate: {0:.2f}%\t".format(acc * 100), "Loss: {0:.2f}\t".format(loss))
 
                 end = time.time()
                 print('Process time: {0:.2f}s\n'.format(end - start))
-
-                if generation % 1 == 0:
-                    result = np.array(self.population.get_the_best().genes)
-                    result = result.reshape((int(np.sqrt(len(result) // 3)), int(np.sqrt(len(result) // 3)), 3))
-                    plt.imshow(result)
-                    plt.show()
 
                 if best_fitness > self.population.get_the_best().fitness:
                     no_improvement = 0
@@ -150,7 +142,7 @@ class GeneticAlgorithm(object):
         """
         start = time.time()
 
-        if self.pool:
+        if 1:
             print('Use process pool for mutation with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             members = p.map(self.mutation_function, self.population.get_all()[self.first:], chunksize=1)
@@ -159,7 +151,7 @@ class GeneticAlgorithm(object):
                 self.population.set_genes(member.genes, i + self.first)
 
             p.terminate()
-        elif self.thread:
+        elif 0:
             print('Use thread pool for mutation with pool size {}.'.format(self.pool_size))
 
             # threads = []
@@ -192,14 +184,13 @@ class GeneticAlgorithm(object):
         """
         start = time.time()
 
-        if 1: #self.pool:
+        if self.pool: #self.pool:
             print('Use process pool for local search with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             members = p.map(self.memetic_function, self.population.get_all())
 
             for i, member in enumerate(members):
-                self.population.set_fitness(member.fitness, i)
-                self.population.set_genes(member.genes, i)
+                self.population.set_genes(member, i)
 
             p.terminate()
         elif self.thread:
@@ -208,13 +199,11 @@ class GeneticAlgorithm(object):
                 members = p.map(self.memetic_function, self.population.get_all())
 
                 for i, member in enumerate(members):
-                    self.population.set_fitness(member.fitness, i)
-                    self.population.set_genes(member.genes, i)
+                    self.population.set_genes(member, i)
         else:
             for i, member in enumerate(self.population.get_all()):
                 member = self.memetic_function(member)
-                self.population.set_fitness(member.fitness, i)
-                self.population.set_genes(member.genes, i)
+                self.population.set_genes(member, i)
 
         end = time.time()
         print('Memetic for weights time: {0:.2f}s'.format(end - start))
@@ -225,7 +214,7 @@ class GeneticAlgorithm(object):
         """
         start = time.time()
 
-        if 1: #self.pool:
+        if 0: #self.pool:
             print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             fitness_values = p.map(self.fitness_function, self.population.get_all())
@@ -245,7 +234,6 @@ class GeneticAlgorithm(object):
             for i, member in enumerate(self.population.get_all()):
                 fitness_values = self.fitness_function(member)
                 self.population.set_fitness(fitness_values, i)
-                time.sleep(2)
 
         end = time.time()
         print('Calculate pop fitness time: {0:.2f}s'.format(end - start))

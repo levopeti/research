@@ -1,6 +1,10 @@
 import numpy as np
+# import mxnet as mx
+# from mxnet import nd
 import tensorflow as tf
+from keras.datasets import fashion_mnist
 import time
+import pickle
 from pathos.multiprocessing import Pool
 from multiprocessing import cpu_count
 from scipy import signal
@@ -8,13 +12,17 @@ from sklearn.metrics import log_loss
 import os
 
 np.random.seed(int(time.time()))
+# mx.random.seed(int(time.time()))
 
 
 class NeuralNet(object):
     def __init__(self):
         self.num_class = 10
         self.learning_rate = 0.1
-        self.loss = self.loss_func("MSE")
+
+        loss = "MSE"
+        self.loss = self.loss_func(loss)
+        self.error = self.error_func(loss)
 
         mnist = tf.keras.datasets.mnist
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -22,24 +30,19 @@ class NeuralNet(object):
         x_train = np.reshape(x_train, (-1, 28 * 28))
         x_test = np.reshape(x_test, (-1, 28 * 28))
 
-        self.X = np.append(x_train, x_test, axis=0)
+        self.X = np.array(np.append(x_train, x_test, axis=0))
         self.Y = np.eye(self.num_class)[np.append(y_train, y_test)]  # one hot vectors
 
-        self.W = (np.random.rand(784, 10) * 1) - 0.5
-        self.b = (np.random.rand(10) * 1) - 0.5
-        # print("max of W: {0:.2f}".format(np.amax(self.W)))
-        # print("min of W: {0:.2f}\n".format(np.amin(self.W)))
-        # print("max of b: {0:.2f}".format(np.amax(self.b)))
-        # print("min of b: {0:.2f}\n".format(np.amin(self.b)))
-        #
-        # loss, acc = self.evaluate()
-        # print("Accurate: {0:.2f}%\t".format(acc), "Loss: {0:.2f}\t".format(loss))
-        # exit()
-
-        self.z = 0
+        self.model = []
+        self.build_model()
 
     def __del__(self):
         pass
+
+    def build_model(self):
+        print("Build the model...\n")
+        self.model.append(Layer("fc", len(self.X[0]), 256, self.learning_rate, "sigmoid"))
+        self.model.append(Layer("fc", 256, 10, self.learning_rate, "sigmoid"))
 
     def set_weights(self, individual):
         self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
@@ -47,6 +50,15 @@ class NeuralNet(object):
 
     def get_weights_as_genes(self):
         return np.concatenate((np.reshape(self.W, (7840,)), self.b), axis=None)
+
+    def save_weights(self):
+        weights = []
+        for layer in self.model:
+            weights.append(layer.W)
+            weights.append(layer.b)
+
+        with open(os.path.join('weights_512_MSE.txt'), 'wb') as fp:
+            pickle.dump(weights, fp)
 
     def evaluate(self):
         """Evaluate the model."""
@@ -56,9 +68,9 @@ class NeuralNet(object):
         for i in range(len(self.X)):
 
             # forward
-            o = self.dense_fw(self.X[i])
+            o = self.forward(i)
 
-            loss, predicted_value, _ = self.loss(o, self.Y[i])
+            loss, predicted_value = self.loss(o, self.Y[i])
             predicted_values.append(predicted_value)
 
             global_loss += loss
@@ -73,14 +85,32 @@ class NeuralNet(object):
         for i in range(len(self.X)):
 
             # forward
-            o = self.dense_fw(self.X[i])
+            o = self.forward(i)
 
-            _, _, error = self.loss(o, self.Y[i])
+            error = self.error(o, self.Y[i])
 
             # backward
-            self.dense_bw(self.X[i], error)
+            self.backward(error, i)
+
+    def forward(self, i):
+        data = self.X[i]
+        for layer in self.model:
+            data = layer.forward(data)
+        return data
+
+    def backward(self, error, i):
+        output_bp = error
+        for j in range(len(self.model))[::-1]:
+            layer = self.model[j]
+            if j == len(self.model) - 1 and len(self.model) != 1:
+                output_bp = layer.backward(self.model[j - 1].output, error)
+            elif j == 0:
+                output_bp = layer.backward(self.X[i], output_bp)
+            else:
+                output_bp = layer.backward(self.model[j - 1].output, output_bp)
 
     def base_line(self, epochs):
+        print("Start training the model...\n")
 
         for i in range(epochs):
             start = time.time()
@@ -91,8 +121,8 @@ class NeuralNet(object):
             # print("max of b: {0:.2f}".format(np.amax(self.b)))
             # print("min of b: {0:.2f}\n".format(np.amin(self.b)))
 
-            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate), "Loss: {0:.2f}\t".format(loss_value), "ETA: {0:.2f}s\n".format(time.time() - start))
-            if i > 60:
+            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate * 100), "Loss: {0:.2f}\t".format(loss_value), "ETA: {0:.2f}s\n".format(time.time() - start))
+            if i == 30:
                 self.learning_rate *= 0.5
 
     def accurate_func(self, pred):
@@ -104,29 +134,25 @@ class NeuralNet(object):
                 goal += 1
         return goal / pred.shape[0]
 
-    def dense_fw(self, x):
-        """Fully connected layer forward process."""
-        self.z = np.add(np.dot(x, self.W), self.b)
-        return self.log(self.z)
-
-    def dense_bw(self, x, error):
-        """Fully connected layer backward process"""
-        d_log_z = self.d_log(self.z)
-        delta_b = np.multiply(error, d_log_z)
-        delta_b = delta_b.reshape((1, -1))
-        x = x.reshape((1, -1))
-        x = np.transpose(x)
-        delta_W = np.dot(x, delta_b)
-
-        self.W = np.subtract(self.W, delta_W * self.learning_rate)
-        self.b = np.subtract(self.b, delta_b * self.learning_rate)
-
     def loss_func(self, type):
         def mse(o, y):
-            return np.square(o - y).sum() * 0.5, np.argmax(o), np.subtract(o, y)
+            return np.square(o - y).sum() * 0.5, np.argmax(o)
 
         def xe(o, y):
-            return self.cross_entropy(o, y), np.argmax(self.softmax(o)), self.d_cross_entropy(o, y)[0]
+            return self.cross_entropy(o, y), np.argmax(self.softmax(o))
+
+        if type == "MSE":
+            return mse
+
+        elif type == "XE":
+            return xe
+
+    def error_func(self, type):
+        def mse(o, y):
+            return np.subtract(o, y)
+
+        def xe(o, y):
+            return self.d_cross_entropy(o, y)[0]
 
         if type == "MSE":
             return mse
@@ -175,6 +201,76 @@ class NeuralNet(object):
         grad = grad / m
         return grad
 
+
+class Layer(object):
+    def __init__(self, layer_type, input_size, output_size, learning_rate, activation):
+        self.layer_type = layer_type
+        self.input_size = input_size
+        self.output_size = output_size
+        self.learning_rate = learning_rate
+
+        self.act = self.act_func(activation)
+        self.d_act = self.d_act_func(activation)
+
+        self.output = None
+
+        self.W = None
+        self.b = None
+        self.z = None
+
+        self.forward = None
+        self.backward = None
+
+        if self.layer_type == "fc":
+            self.W = (np.random.rand(self.input_size, self.output_size) * 1) - 0.5
+            self.b = (np.random.rand(self.output_size) * 1) - 0.5
+            self.forward = self.dense_fw
+            self.backward = self.dense_bw
+
+    def dense_fw(self, x):
+        """Fully connected layer forward process."""
+        self.z = np.add(np.dot(x, self.W), self.b)
+        self.output = self.act(self.z)
+        return self.output
+
+    def dense_bw(self, input_layer, input_error):
+        """Fully connected layer backward process"""
+        d_act_z = self.d_act(self.z)
+
+        delta_b = np.multiply(input_error, d_act_z)
+        delta_b = delta_b.reshape((1, -1))
+
+        x = input_layer.reshape((1, -1))
+        x = np.transpose(x)
+        delta_W = np.dot(x, delta_b)
+
+        output_bp = np.dot(delta_b, np.transpose(self.W))
+
+        self.W = np.subtract(self.W, delta_W * self.learning_rate)
+        self.b = np.subtract(self.b, delta_b * self.learning_rate)
+
+        return output_bp
+
+    def act_func(self, type):
+        if type == "tanh":
+            return self.tanh
+
+        elif type == "sigmoid":
+            return self.log
+
+        elif type == "relu":
+            return self.relu
+
+    def d_act_func(self, type):
+        if type == "tanh":
+            return self.d_tanh
+
+        elif type == "sigmoid":
+            return self.d_log
+
+        elif type == "relu":
+            return self.d_relu
+
     def tanh(self, x):
         return np.tanh(x)
 
@@ -196,7 +292,8 @@ class NeuralNet(object):
 
 if __name__ == "__main__":
     nn = NeuralNet()
-    nn.base_line(30)
+    nn.base_line(60)
+    nn.save_weights()
 
 
 

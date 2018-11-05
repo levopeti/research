@@ -1,6 +1,7 @@
 import numpy as np
 import keras
 from neural_network import NeuralNet
+import matplotlib.pyplot as plt
 
 from PIL import Image, ImageOps
 
@@ -11,7 +12,7 @@ class FitnessFunction(object):
         self.fitness_function = None
 
         self.image = None
-        self.size = 120
+        self.size = 50
 
         self.model = None
 
@@ -21,9 +22,11 @@ class FitnessFunction(object):
         if self.id == 2:
             image = Image.open('/home/biot/Pictures/kislevi.jpg')  # (960, 720, 3) -> 2073600       /home/biot/Pictures/kislevi.jpg     /root/inspiron/research/kislevi.jpg
             image = ImageOps.fit(image, (self.size, self.size), method=Image.ANTIALIAS)  # (50, 50, 3) -> 7500
-            image = np.array(image)
+            image = np.array(image) * 0
+            # plt.imshow(image)
+            # plt.show()
             image = image.flatten()
-            self.image = image / 255
+            self.image = image   # / 255
 
             self.fitness_function = self.fitness_func2
 
@@ -59,7 +62,7 @@ class FitnessFunction(object):
         return sum(individual.genes)
 
     def fitness_func2(self, individual, acc=False):
-        dist = np.linalg.norm(individual.genes - self.image)
+        dist = np.linalg.norm(individual.genes)
         return dist
 
     @staticmethod

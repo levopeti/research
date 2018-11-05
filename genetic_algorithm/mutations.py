@@ -41,4 +41,3 @@ def mutation(mut_id):
 
     elif mut_id == 2:
         return bac_mutation
-

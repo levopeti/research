@@ -4,7 +4,8 @@ import time
 import pickle
 import os
 from abc import ABC, abstractmethod
-from scipy import signal
+from scipy.signal import convolve2d
+from skimage.measure import block_reduce
 
 np.random.seed(int(time.time()))
 
@@ -32,14 +33,6 @@ class NeuralNet(object):
         self.learning_rate = learning_rate
         self.loss = self.loss_func(loss)
         self.error = self.error_func(loss)
-
-        # def compile(layer):
-        #     if layer:
-        #         for next_layer in layer.next_layer:
-        #             next_layer.learning_rate = self.learning_rate
-        #             compile(next_layer)
-        #
-        # compile(self.input)
 
     def set_weights(self, individual):
         self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
@@ -78,8 +71,6 @@ class NeuralNet(object):
     def train_step(self):
         """Train one epoch on the network with backpropagation."""
 
-        # alternative async
-
         for i in range(len(self.X)):
 
             # forward process
@@ -91,26 +82,16 @@ class NeuralNet(object):
 
             # backward process
             start = time.time()
-            self.backward(error, i)
+            self.backward(error)
             # print("Time of backward: {}s\n".format(time.time() - start))
             # input()
 
     def forward(self, i):
         self.input.forward_process(self.X[i])
-        # for layer in self.model:
-        #     data = layer.forward(data)
-        # return data
 
-    def backward(self, output_bp, i):
+    def backward(self, error):
         # for the first layer the output_bp = error
-        self.output.backward_process(output_bp)
-
-        # for j in range(len(self.model))[::-1]:
-        #     layer = self.model[j]
-        #     if j == 0:
-        #         output_bp = layer.backward(self.X[i], output_bp)
-        #     else:
-        #         output_bp = layer.backward(self.model[j - 1].output, output_bp)
+        self.output.backward_process(error)
 
     def train(self, X, Y, epochs):
         self.X = X
@@ -129,7 +110,6 @@ class NeuralNet(object):
 
     def accurate_func(self, pred):
         goal = 0
-
         for i in range(pred.shape[0]):
 
             if pred[i] == np.argmax(self.Y[i]):
@@ -290,19 +270,19 @@ class Dense(Layer):
     def __new__(cls, units, activation="sigmoid", learning_rate=0.1):
         def set_prev_layer(layer):
             instance = super(Dense, cls).__new__(cls)
-            instance.__init__(units, activation="sigmoid", learning_rate=learning_rate, prev_layer=layer)
+            instance.__init__(units, activation=activation, learning_rate=learning_rate, prev_layer=layer)
             return instance
         return set_prev_layer
 
     def __init__(self, units, activation="sigmoid", learning_rate=0.1, prev_layer=None):
-        super().__init__(activation, learning_rate, prev_layer)
+        super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
         self.output_size = (1, units)
 
         self.W = (np.random.rand(self.input_size[1], self.output_size[1]) * 1) - 0.5
         self.b = (np.random.rand(self.output_size[1]) * 1) - 0.5
         # self.b = np.zeros(self.output_size)
 
-        log = "Dense layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format((self.input_size[1] + 1) * self.output_size[1], self.input_size[1], self.output_size[1])
+        log = "Dense layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
         print(log)
 
     def forward_process(self):
@@ -315,6 +295,7 @@ class Dense(Layer):
 
     def backward_process(self, input_error):
         """Fully connected layer backward process"""
+        # TODO: More next layer
         d_act_z = self.d_act(self.z)
 
         delta_b = np.multiply(input_error, d_act_z)
@@ -329,41 +310,174 @@ class Dense(Layer):
 
         self.prev_layer.backward_process(self.output_bp)
 
-# class Conv2d(Layer):
-#     def __init__(self, input_size, output_size, learning_rate, activation, kernel_size, number_of_kernel):
-#         super().__init__(input_size, output_size, learning_rate, activation)
-#         self.kernel_size = kernel_size
-#         self.number_of_kernel = number_of_kernel
-#
-#         self.W = (np.random.rand(self.number_of_kernel, self.kernel_size, self.kernel_size) * 1) - 0.5
-#         self.b = (np.random.rand(self.number_of_kernel) * 1) - 0.5
-#         # self.b = np.zeros(self.output_size)
-#         self.forward = self.forward_process
-#         self.backward = self.backward_process
-#
-#     def forward_process(self, x):
-#         """2d convolution layer forward process."""
-#         # TODO: Bias
-#         conv_input = x
-#         self.z = []
-#
-#         for kernel in self.W:
-#             self.z.append(signal.convolve2d(conv_input, kernel, mode="same"))
-#         self.z = np.array(self.z)
-#         self.output = self.act(self.z)
-#
-#         return self.output
-#
-#     def backward_process(self, input_layer, input_error):
-#         """2d convolution layer backward process"""
-#         # TODO: Bias
-#         d_act_z = self.d_act(self.z)
-#
-#         for kernel in self.W:
-#
-#
-# class Concat:
-#     pass
+
+class Conv2d(Layer):
+    def __new__(cls, number_of_kernel, kernel_size, activation="sigmoid", learning_rate=0.1):
+        def set_prev_layer(layer):
+            instance = super(Conv2d, cls).__new__(cls)
+            instance.__init__(number_of_kernel, kernel_size, activation=activation, learning_rate=learning_rate, prev_layer=layer)
+            return instance
+        return set_prev_layer
+
+    def __init__(self, number_of_kernel, kernel_size, activation="sigmoid", learning_rate=0.1, prev_layer=None):
+        super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
+        self.kernel_size = kernel_size
+        self.number_of_kernel = number_of_kernel
+
+        # with 'valid' convolution
+        self.output_size = (self.number_of_kernel * self.input_size[0], self.input_size[1] - (self.kernel_size - 1), self.input_size[2] - (self.kernel_size - 1))
+
+        self.W = (np.random.rand(self.number_of_kernel, self.kernel_size, self.kernel_size) * 1) - 0.5
+        self.b = (np.random.rand(self.number_of_kernel) * 1) - 0.5
+        # self.b = np.zeros(self.output_size)
+
+        log = "2D convolution layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
+        print(log)
+
+    def forward_process(self):
+        """2d convolution layer forward process."""
+        conv_inputs = self.prev_layer.output
+        self.z = []
+
+        for conv_input in conv_inputs:
+            for i in range(self.W.shape[0]):
+                tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
+                self.z.append(tmp)
+
+        self.z = np.array(self.z)
+        self.output = self.act(self.z)
+
+        for layer in self.next_layer:
+            layer.forward_process()
+
+    def backward_process(self, input_error):
+        """2d convolution layer backward process"""
+        g = input_error
+        d_act_z = self.d_act(self.z)
+        delta = g * d_act_z
+
+        output_bp = []
+        tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
+        tmp_d = np.zeros((self.W.shape[0], delta[0].shape[0], delta[0].shape[1]))
+
+        j = 0
+        for i in range(delta.shape[0]):
+            tmp_bp += convolve2d(delta[i], self.W[j], mode="full")
+            tmp_d[j] += delta[i]
+
+            j += 1
+            if j == self.W.shape[0]:
+                output_bp.append(tmp_bp)
+                tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
+                j = 0
+
+        tmp_d /= delta.shape[0] / self.W.shape[0]
+        for i in range(tmp_d.shape[0]):
+            avg = np.average(tmp_d[i].reshape(1, -1))
+            self.b[i] = np.subtract(self.b[i], avg * self.learning_rate)
+
+        self.output_bp = np.array(output_bp)
+
+        for i in range(self.W.shape[0]):
+            # delta_W for every kernel (W[i]) with g[i] * dL[i] (delta[i])
+            delta_W = np.zeros(self.W[0].shape)
+
+            for x in self.prev_layer.output:
+                delta_W += convolve2d(x, delta[i], mode="valid")
+
+            self.W[i] = np.subtract(self.W[i], delta_W * self.learning_rate)
+
+        self.prev_layer.backward_process(self.output_bp)
+
+
+class Flatten(Layer):
+    def __new__(cls):
+        def set_prev_layer(layer):
+            instance = super(Flatten, cls).__new__(cls)
+            instance.__init__(prev_layer=layer)
+            return instance
+        return set_prev_layer
+
+    def __init__(self, prev_layer=None):
+        super().__init__(prev_layer=prev_layer)
+        self.set_output_size()
+
+        log = "Flatten layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
+        print(log)
+
+    def set_output_size(self):
+        output_size = 1
+        for i in self.input_size:
+            output_size *= i
+        self.output_size = (1, output_size)
+
+    def forward_process(self):
+        """Flatten connected layer forward process."""
+        x = self.prev_layer.output
+        self.output = x.reshape(1, -1)
+        for layer in self.next_layer:
+            layer.forward_process()
+
+    def backward_process(self, input_error):
+        """Flatten connected layer backward process"""
+        # TODO: More next layer
+        self.output_bp = input_error.reshape(self.prev_layer.output_size)
+        self.prev_layer.backward_process(self.output_bp)
+
+
+class Pool2d(Layer):
+    def __new__(cls, kernel_size):
+        def set_prev_layer(layer):
+            instance = super(Pool2d, cls).__new__(cls)
+            instance.__init__(prev_layer=layer, kernel_size=kernel_size)
+            return instance
+        return set_prev_layer
+
+    def __init__(self, kernel_size, prev_layer=None):
+        super().__init__(prev_layer=prev_layer)
+        self.kernel_size = kernel_size
+        self.set_output_size()
+
+        log = "2D pool layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
+        print(log)
+
+    def set_output_size(self):
+        output = block_reduce(np.zeros((self.input_size[1], self.input_size[2])), block_size=(self.kernel_size, self.kernel_size), func=np.max)
+        self.output_size = (self.input_size[0], output.shape[0], output.shape[1])
+
+    def forward_process(self):
+        """Flatten connected layer forward process."""
+        output = []
+
+        for x in self.prev_layer.output:
+            output.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
+
+        self.output = np.array(output)
+
+        for layer in self.next_layer:
+            layer.forward_process()
+
+    def backward_process(self, input_error):
+        """Flatten connected layer backward process"""
+        # TODO: More next layer
+        output = []
+
+        for i in range(self.prev_layer.output_size[0]):
+            tmp = input_error[i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+            tmp = tmp[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+
+            tmp2 = self.output[i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+            tmp2 = tmp2[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+
+            mask = np.equal(self.prev_layer.output[i], tmp2).astype(int)
+            tmp = tmp * mask
+            output.append(tmp)
+
+        self.output_bp = np.array(output)
+        self.prev_layer.backward_process(self.output_bp)
+
+
+# TODO: class Concat:
 
 
 class Input(object):
@@ -396,16 +510,23 @@ if __name__ == "__main__":
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
-    x_train = np.reshape(x_train, (-1, 1, 28 * 28))
-    x_test = np.reshape(x_test, (-1, 1, 28 * 28))
+    # x_train = np.reshape(x_train, (-1, 1, 28 * 28))
+    # x_test = np.reshape(x_test, (-1, 1, 28 * 28))
+    x_train = np.reshape(x_train, (-1, 1, 28, 28))
+    x_test = np.reshape(x_test, (-1, 1, 28, 28))
 
     X = np.array(np.append(x_train, x_test, axis=0))
     Y = np.eye(num_class)[np.append(y_train, y_test)]  # one hot vectors
 
-    ip = Input(input_size=(1, 784))
-    x = Dense(units=512, activation="sigmoid")(ip)
-    x = Dense(units=128, activation="sigmoid")(x)
-    op = Dense(units=10, activation="sigmoid")(x)
+    ip = Input(input_size=(1, 28, 28))
+    x = Conv2d(number_of_kernel=20, kernel_size=4, activation="relu")(ip)
+    x = Pool2d(kernel_size=3)(x)
+    x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
+    x = Pool2d(kernel_size=2)(x)
+    x = Flatten()(x)
+    # x = Dense(units=128, activation="sigmoid")(x)
+    # x = Dense(units=64, activation="sigmoid")(x)
+    op = Dense(units=num_class, activation="sigmoid")(x)
 
     nn = NeuralNet(ip, op)
     nn.build_model(loss="MSE", learning_rate=0.1)

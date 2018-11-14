@@ -56,6 +56,8 @@ class NeuralNet(object):
         predicted_values = []
 
         for i in range(len(self.X)):
+            if i % 5000 == 0:
+                print(i)
 
             # forward process
             self.forward(i)
@@ -72,6 +74,8 @@ class NeuralNet(object):
         """Train one epoch on the network with backpropagation."""
 
         for i in range(len(self.X)):
+            if i % 5000 == 0:
+                print(i)
 
             # forward process
             start = time.time()
@@ -478,6 +482,11 @@ class Pool2d(Layer):
 
 
 # TODO: class Concat:
+# TODO: class Add:
+# TODO: class Subtract:
+# TODO: class Dropout:
+# TODO: class Batchnorm:
+# TODO: class sparse XE:
 
 
 class Input(object):
@@ -519,10 +528,10 @@ if __name__ == "__main__":
     Y = np.eye(num_class)[np.append(y_train, y_test)]  # one hot vectors
 
     ip = Input(input_size=(1, 28, 28))
-    x = Conv2d(number_of_kernel=20, kernel_size=4, activation="relu")(ip)
+    x = Conv2d(number_of_kernel=16, kernel_size=5, activation="tanh")(ip)
     x = Pool2d(kernel_size=3)(x)
-    x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
-    x = Pool2d(kernel_size=2)(x)
+    # x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
+    # x = Pool2d(kernel_size=2)(x)
     x = Flatten()(x)
     # x = Dense(units=128, activation="sigmoid")(x)
     # x = Dense(units=64, activation="sigmoid")(x)
@@ -533,4 +542,4 @@ if __name__ == "__main__":
     nn.train(X, Y, epochs=60)
     nn.save_weights()
 
-
+    # TODO: optimizers

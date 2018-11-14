@@ -58,43 +58,45 @@ class NeuralNet(object):
         global_loss = 0
         predicted_values = []
 
-        for i in range(len(self.X)):
-            # if i % 5000 == 0:
-            #     print(i)
+        for b in range(self.num_batches):
+            # print(b)
 
             # forward process
-            self.forward(i)
+            start, end = b * self.batch_size, (b + 1) * self.batch_size
+            self.forward(start, end)
             o = self.output.output
 
-            loss, predicted_value = self.loss(o, self.Y[i])
+            loss, predicted_value = self.loss(o, self.Y[start: end])
             predicted_values.append(predicted_value)
 
             global_loss += loss
+
+        predicted_values = np.array(predicted_values).reshape(-1,)
 
         return global_loss, self.accurate_func(np.array(predicted_values))
 
     def train_step(self):
         """Train one epoch on the network with backpropagation."""
 
-        for i in range(len(self.X)):
-            # if i % 5000 == 0:
-            #     print(i)
+        for b in range(self.num_batches):
+            # print(b)
 
-            # forward process
-            start = time.time()
-            self.forward(i)
+            # forward
+            start_time = time.time()
+            start, end = b * self.batch_size, (b + 1) * self.batch_size
+            self.forward(start, end)
             o = self.output.output
-            # print("Time of forward: {}s\n".format(time.time() - start))
-            error = self.error(o, self.Y[i])
+            # print("Time of forward: {}s".format(time.time() - start_time))
+            error = self.error(o, self.Y[start: end])
 
-            # backward process
-            start = time.time()
+            # backward
+            start_time = time.time()
             self.backward(error)
-            # print("Time of backward: {}s\n".format(time.time() - start))
+            # print("Time of backward: {}s".format(time.time() - start_time))
             # input()
 
-    def forward(self, i):
-        self.input.forward_process(self.X[i])
+    def forward(self, start, end):
+        self.input.forward_process(self.X[start: end])
 
     def backward(self, error):
         # for the first layer the output_bp = error
@@ -128,7 +130,7 @@ class NeuralNet(object):
 
     def loss_func(self, type):
         def mse(o, y):
-            return np.square(o - y).sum() * 0.5 / self.X.shape[0], np.argmax(o)
+            return np.square(o - y).sum() * 0.5 / self.X.shape[0], np.argmax(o, axis=1)
 
         def xe(o, y):
             return self.cross_entropy(o, y), np.argmax(self.softmax(o))
@@ -286,7 +288,8 @@ class Dense(Layer):
 
     def __init__(self, units, activation="sigmoid", learning_rate=0.1, prev_layer=None):
         super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
-        self.output_size = (1, units)
+        self.batch_size = 100
+        self.output_size = (self.batch_size, units)
 
         self.W = (np.random.rand(self.input_size[1], self.output_size[1]) * 1) - 0.5
         self.b = (np.random.rand(self.output_size[1]) * 1) - 0.5
@@ -309,14 +312,16 @@ class Dense(Layer):
         d_act_z = self.d_act(self.z)
 
         delta_b = np.multiply(input_error, d_act_z)
-        delta_b = delta_b.reshape((1, -1))
         x = self.prev_layer.output
         x = np.transpose(x)
-        delta_W = np.dot(x, delta_b)
 
         self.output_bp = np.dot(delta_b, np.transpose(self.W))
-        self.W = np.subtract(self.W, delta_W * self.learning_rate)
-        self.b = np.subtract(self.b, delta_b * self.learning_rate)
+
+        delta_W = np.dot(x, delta_b)
+        delta_b = np.sum(delta_b, axis=0)
+
+        self.W = np.subtract(self.W, delta_W * (self.learning_rate / self.batch_size))
+        self.b = np.subtract(self.b, delta_b * (self.learning_rate / self.batch_size))
 
         self.prev_layer.backward_process(self.output_bp)
 
@@ -525,8 +530,8 @@ if __name__ == "__main__":
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
-    x_train = np.reshape(x_train, (-1, 1, 28 * 28))
-    x_test = np.reshape(x_test, (-1, 1, 28 * 28))
+    x_train = np.reshape(x_train, (-1, 28 * 28))
+    x_test = np.reshape(x_test, (-1, 28 * 28))
     # x_train = np.reshape(x_train, (-1, 1, 28, 28))
     # x_test = np.reshape(x_test, (-1, 1, 28, 28))
 
@@ -539,13 +544,16 @@ if __name__ == "__main__":
     # x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
     # x = Pool2d(kernel_size=2)(x)
     # x = Flatten()(x)
-    # x = Dense(units=128, activation="sigmoid")(x)
-    # x = Dense(units=64, activation="sigmoid")(x)
-    op = Dense(units=num_class, activation="sigmoid", learning_rate=0.1)(ip)
+    x = Dense(units=128, activation="sigmoid", learning_rate=1)(ip)
+    x = Dense(units=64, activation="sigmoid", learning_rate=1)(x)
+    op = Dense(units=num_class, activation="sigmoid", learning_rate=1)(x)
 
     nn = NeuralNet(ip, op)
-    nn.build_model(loss="MSE", learning_rate=1)
+    nn.build_model(loss="MSE", learning_rate=0.1)
     nn.train(X[:60000], Y[:60000], epochs=5, batch_size=100)
     # nn.save_weights()
 
     # TODO: optimizers
+    # TODO: batch size in layers
+
+

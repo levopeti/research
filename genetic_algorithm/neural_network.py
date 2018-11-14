@@ -19,6 +19,9 @@ class NeuralNet(object):
         self.X = None
         self.Y = None
 
+        self.batch_size = None
+        self.num_batches = None
+
         self.input = input
         self.output = output
 
@@ -56,8 +59,8 @@ class NeuralNet(object):
         predicted_values = []
 
         for i in range(len(self.X)):
-            if i % 5000 == 0:
-                print(i)
+            # if i % 5000 == 0:
+            #     print(i)
 
             # forward process
             self.forward(i)
@@ -74,8 +77,8 @@ class NeuralNet(object):
         """Train one epoch on the network with backpropagation."""
 
         for i in range(len(self.X)):
-            if i % 5000 == 0:
-                print(i)
+            # if i % 5000 == 0:
+            #     print(i)
 
             # forward process
             start = time.time()
@@ -97,9 +100,12 @@ class NeuralNet(object):
         # for the first layer the output_bp = error
         self.output.backward_process(error)
 
-    def train(self, X, Y, epochs):
+    def train(self, X, Y, epochs, batch_size):
         self.X = X
         self.Y = Y
+
+        self.batch_size = batch_size
+        self.num_batches = self.X.shape[0] // self.batch_size
 
         print("Start training the model...\n")
 
@@ -108,7 +114,7 @@ class NeuralNet(object):
             self.train_step()
             loss_value, accurate = self.evaluate()
 
-            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate * 100), "Loss: {0:.2f}\t".format(loss_value), "ETA: {0:.2f}s\n".format(time.time() - start))
+            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate * 100), "Loss: {0:.4f}\t".format(loss_value), "ETA: {0:.2f}s\n".format(time.time() - start))
             if i == 30:
                 self.learning_rate *= 0.5
 
@@ -122,7 +128,7 @@ class NeuralNet(object):
 
     def loss_func(self, type):
         def mse(o, y):
-            return np.square(o - y).sum() * 0.5, np.argmax(o)
+            return np.square(o - y).sum() * 0.5 / self.X.shape[0], np.argmax(o)
 
         def xe(o, y):
             return self.cross_entropy(o, y), np.argmax(self.softmax(o))
@@ -519,27 +525,27 @@ if __name__ == "__main__":
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
-    # x_train = np.reshape(x_train, (-1, 1, 28 * 28))
-    # x_test = np.reshape(x_test, (-1, 1, 28 * 28))
-    x_train = np.reshape(x_train, (-1, 1, 28, 28))
-    x_test = np.reshape(x_test, (-1, 1, 28, 28))
+    x_train = np.reshape(x_train, (-1, 1, 28 * 28))
+    x_test = np.reshape(x_test, (-1, 1, 28 * 28))
+    # x_train = np.reshape(x_train, (-1, 1, 28, 28))
+    # x_test = np.reshape(x_test, (-1, 1, 28, 28))
 
     X = np.array(np.append(x_train, x_test, axis=0))
     Y = np.eye(num_class)[np.append(y_train, y_test)]  # one hot vectors
 
-    ip = Input(input_size=(1, 28, 28))
-    x = Conv2d(number_of_kernel=16, kernel_size=5, activation="tanh")(ip)
-    x = Pool2d(kernel_size=3)(x)
+    ip = Input(input_size=(1, 784))
+    # x = Conv2d(number_of_kernel=16, kernel_size=5, activation="tanh")(ip)
+    # x = Pool2d(kernel_size=3)(x)
     # x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
     # x = Pool2d(kernel_size=2)(x)
-    x = Flatten()(x)
+    # x = Flatten()(x)
     # x = Dense(units=128, activation="sigmoid")(x)
     # x = Dense(units=64, activation="sigmoid")(x)
-    op = Dense(units=num_class, activation="sigmoid")(x)
+    op = Dense(units=num_class, activation="sigmoid", learning_rate=0.1)(ip)
 
     nn = NeuralNet(ip, op)
-    nn.build_model(loss="MSE", learning_rate=0.1)
-    nn.train(X, Y, epochs=60)
-    nn.save_weights()
+    nn.build_model(loss="MSE", learning_rate=1)
+    nn.train(X[:60000], Y[:60000], epochs=5, batch_size=100)
+    # nn.save_weights()
 
     # TODO: optimizers

@@ -18,6 +18,7 @@ class NeuralNet(object):
 
         self.X = None
         self.Y = None
+        self.Y_am = None        # Y argmax
 
         self.batch_size = None
         self.num_batches = None
@@ -59,7 +60,7 @@ class NeuralNet(object):
         predicted_values = []
 
         for b in range(self.num_batches):
-            # print(b)
+            print(b)
 
             # forward process
             start, end = b * self.batch_size, (b + 1) * self.batch_size
@@ -79,7 +80,7 @@ class NeuralNet(object):
         """Train one epoch on the network with backpropagation."""
 
         for b in range(self.num_batches):
-            # print(b)
+            print(b)
 
             # forward
             start_time = time.time()
@@ -105,6 +106,7 @@ class NeuralNet(object):
     def train(self, X, Y, epochs, batch_size):
         self.X = X
         self.Y = Y
+        self.Y_am = np.argmax(Y, axis=1)
 
         self.batch_size = batch_size
         self.num_batches = self.X.shape[0] // self.batch_size
@@ -303,6 +305,7 @@ class Dense(Layer):
         x = self.prev_layer.output
         self.z = np.add(np.dot(x, self.W), self.b)
         self.output = self.act(self.z)
+
         for layer in self.next_layer:
             layer.forward_process()
 
@@ -338,6 +341,7 @@ class Conv2d(Layer):
         super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
         self.kernel_size = kernel_size
         self.number_of_kernel = number_of_kernel
+        self.batch_size = 100
 
         # with 'valid' convolution
         self.output_size = (self.number_of_kernel * self.input_size[0], self.input_size[1] - (self.kernel_size - 1), self.input_size[2] - (self.kernel_size - 1))
@@ -351,13 +355,16 @@ class Conv2d(Layer):
 
     def forward_process(self):
         """2d convolution layer forward process."""
-        conv_inputs = self.prev_layer.output
+        batch_input = self.prev_layer.output
         self.z = []
 
-        for conv_input in conv_inputs:
-            for i in range(self.W.shape[0]):
-                tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
-                self.z.append(tmp)
+        for conv_inputs in batch_input:
+            batch = []
+            for conv_input in conv_inputs:
+                for i in range(self.W.shape[0]):
+                    tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
+                    batch.append(tmp)
+            self.z.append(batch)
 
         self.z = np.array(self.z)
         self.output = self.act(self.z)
@@ -369,39 +376,42 @@ class Conv2d(Layer):
         """2d convolution layer backward process"""
         g = input_error
         d_act_z = self.d_act(self.z)
-        delta = g * d_act_z
+        delta_batch = g * d_act_z
 
         output_bp = []
-        tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
-        tmp_d = np.zeros((self.W.shape[0], delta[0].shape[0], delta[0].shape[1]))
+        for b, delta in enumerate(delta_batch):
+            batch = []
+            tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
+            tmp_d = np.zeros((self.W.shape[0], delta[0].shape[0], delta[0].shape[1]))
 
-        j = 0
-        for i in range(delta.shape[0]):
-            tmp_bp += convolve2d(delta[i], self.W[j], mode="full")
-            tmp_d[j] += delta[i]
+            j = 0
+            for i in range(delta.shape[0]):
+                tmp_bp += convolve2d(delta[i], self.W[j], mode="full")
+                tmp_d[j] += delta[i]
 
-            j += 1
-            if j == self.W.shape[0]:
-                output_bp.append(tmp_bp)
-                tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
-                j = 0
+                j += 1
+                if j == self.W.shape[0]:
+                    batch.append(tmp_bp)
+                    tmp_bp = np.zeros((delta[0].shape[0] + (self.W[0].shape[0] - 1), delta[0].shape[1] + (self.W[0].shape[1] - 1)))
+                    j = 0
+            output_bp.append(batch)
 
-        tmp_d /= delta.shape[0] / self.W.shape[0]
-        for i in range(tmp_d.shape[0]):
-            avg = np.average(tmp_d[i].reshape(1, -1))
-            self.b[i] = np.subtract(self.b[i], avg * self.learning_rate)
+            tmp_d /= delta.shape[0] / self.W.shape[0]
+            # TODO: accelerate and delta_b
+            for i in range(tmp_d.shape[0]):
+                avg = np.average(tmp_d[i].reshape(1, -1))
+                self.b[i] = np.subtract(self.b[i], avg * self.learning_rate)
+
+            for i in range(self.W.shape[0]):
+                # delta_W for every kernel (W[i]) with g[i] * dL[i] (delta[i])
+                delta_W = np.zeros(self.W[0].shape)
+
+                for x in self.prev_layer.output[b]:
+                    delta_W += convolve2d(x, delta[i], mode="valid")
+
+                self.W[i] = np.subtract(self.W[i], delta_W * self.learning_rate)
 
         self.output_bp = np.array(output_bp)
-
-        for i in range(self.W.shape[0]):
-            # delta_W for every kernel (W[i]) with g[i] * dL[i] (delta[i])
-            delta_W = np.zeros(self.W[0].shape)
-
-            for x in self.prev_layer.output:
-                delta_W += convolve2d(x, delta[i], mode="valid")
-
-            self.W[i] = np.subtract(self.W[i], delta_W * self.learning_rate)
-
         self.prev_layer.backward_process(self.output_bp)
 
 
@@ -415,6 +425,7 @@ class Flatten(Layer):
 
     def __init__(self, prev_layer=None):
         super().__init__(prev_layer=prev_layer)
+        self.batch_size = 100
         self.set_output_size()
 
         log = "Flatten layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
@@ -429,14 +440,15 @@ class Flatten(Layer):
     def forward_process(self):
         """Flatten connected layer forward process."""
         x = self.prev_layer.output
-        self.output = x.reshape(1, -1)
+        self.output = x.reshape(self.batch_size, -1)
+
         for layer in self.next_layer:
             layer.forward_process()
 
     def backward_process(self, input_error):
         """Flatten connected layer backward process"""
         # TODO: More next layer
-        self.output_bp = input_error.reshape(self.prev_layer.output_size)
+        self.output_bp = input_error.reshape((self.batch_size, self.prev_layer.output_size[0], self.prev_layer.output_size[1], self.prev_layer.output_size[2]))
         self.prev_layer.backward_process(self.output_bp)
 
 
@@ -451,6 +463,7 @@ class Pool2d(Layer):
     def __init__(self, kernel_size, prev_layer=None):
         super().__init__(prev_layer=prev_layer)
         self.kernel_size = kernel_size
+        self.batch_size = 100
         self.set_output_size()
 
         log = "2D pool layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
@@ -463,9 +476,13 @@ class Pool2d(Layer):
     def forward_process(self):
         """Flatten connected layer forward process."""
         output = []
+        batch_input = self.prev_layer.output
 
-        for x in self.prev_layer.output:
-            output.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
+        for pool_input in batch_input:
+            batch = []
+            for x in pool_input:
+                batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
+            output.append(batch)
 
         self.output = np.array(output)
 
@@ -477,16 +494,19 @@ class Pool2d(Layer):
         # TODO: More next layer
         output = []
 
-        for i in range(self.prev_layer.output_size[0]):
-            tmp = input_error[i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-            tmp = tmp[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+        for j in range(self.batch_size):
+            batch = []
+            for i in range(self.prev_layer.output_size[0]):
+                tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                tmp = tmp[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
 
-            tmp2 = self.output[i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-            tmp2 = tmp2[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+                tmp2 = self.output[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                tmp2 = tmp2[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
 
-            mask = np.equal(self.prev_layer.output[i], tmp2).astype(int)
-            tmp = tmp * mask
-            output.append(tmp)
+                mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
+                tmp = tmp * mask
+                batch.append(tmp)
+            output.append(batch)
 
         self.output_bp = np.array(output)
         self.prev_layer.backward_process(self.output_bp)
@@ -530,21 +550,21 @@ if __name__ == "__main__":
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
-    x_train = np.reshape(x_train, (-1, 28 * 28))
-    x_test = np.reshape(x_test, (-1, 28 * 28))
-    # x_train = np.reshape(x_train, (-1, 1, 28, 28))
-    # x_test = np.reshape(x_test, (-1, 1, 28, 28))
+    # x_train = np.reshape(x_train, (-1, 28 * 28))
+    # x_test = np.reshape(x_test, (-1, 28 * 28))
+    x_train = np.reshape(x_train, (-1, 1, 28, 28))
+    x_test = np.reshape(x_test, (-1, 1, 28, 28))
 
     X = np.array(np.append(x_train, x_test, axis=0))
     Y = np.eye(num_class)[np.append(y_train, y_test)]  # one hot vectors
 
-    ip = Input(input_size=(1, 784))
-    # x = Conv2d(number_of_kernel=16, kernel_size=5, activation="tanh")(ip)
-    # x = Pool2d(kernel_size=3)(x)
-    # x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
-    # x = Pool2d(kernel_size=2)(x)
-    # x = Flatten()(x)
-    x = Dense(units=128, activation="sigmoid", learning_rate=1)(ip)
+    ip = Input(input_size=(1, 28, 28))
+    x = Conv2d(number_of_kernel=10, kernel_size=5, activation="relu")(ip)
+    x = Pool2d(kernel_size=3)(x)
+    x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
+    x = Pool2d(kernel_size=2)(x)
+    x = Flatten()(x)
+    x = Dense(units=128, activation="sigmoid", learning_rate=1)(x)
     x = Dense(units=64, activation="sigmoid", learning_rate=1)(x)
     op = Dense(units=num_class, activation="sigmoid", learning_rate=1)(x)
 

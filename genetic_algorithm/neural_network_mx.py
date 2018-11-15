@@ -20,7 +20,7 @@ ctx = mx.gpu()
 class NeuralNet(object):
     def __init__(self):
         self.num_class = 10
-        self.learning_rate = 0.1
+        self.learning_rate = 1
 
         loss = "MSE"
         self.loss = self.loss_func(loss)
@@ -39,6 +39,7 @@ class NeuralNet(object):
         # self.X = np.array(np.append(x_train, x_test, axis=0))
         self.X = np.array(x_train)
         # self.Y = np.eye(self.num_class)[np.append(y_train, y_test)]  # one hot vectors
+        self.Y_argmax = y_train
         self.Y = np.eye(self.num_class)[y_train]  # one hot vectors
 
         self.batch_size = 100
@@ -55,8 +56,8 @@ class NeuralNet(object):
 
     def build_model(self):
         print("Build the model...\n")
-        self.model.append(Layer("fc", len(self.X[0]), 256, self.learning_rate, "sigmoid", self.batch_size))
-        self.model.append(Layer("fc", 256, 10, self.learning_rate, "sigmoid", self.batch_size))
+        self.model.append(Layer("fc", len(self.X[0]), 10, self.learning_rate, "sigmoid", self.batch_size))
+        # self.model.append(Layer("fc", 256, 10, self.learning_rate, "sigmoid", self.batch_size))
 
     def set_weights(self, individual):
         self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
@@ -150,7 +151,7 @@ class NeuralNet(object):
     def accurate_func(self, pred):
         goal = 0
         for i in range(pred.shape[0]):
-            if pred[i] == nd.argmax(self.Y[i], axis=0):
+            if pred[i] == self.Y_argmax[i]:
                 goal += 1
         return goal / (pred.shape[0] - 1)
 
@@ -284,13 +285,11 @@ class Layer(object):
 
         output_bp = nd.dot(self.delta_b, nd.transpose(self.W))
 
-        self.delta_W = nd.divide(self.delta_W, input_error.shape[0])
-
         self.delta_b = nd.sum(self.delta_b, axis=0)
-        self.delta_b = nd.divide(self.delta_b, input_error.shape[0])
+        assert self.batch_size == input_error.shape[0]
 
-        self.W = nd.subtract(self.W, self.delta_W * self.learning_rate)
-        self.b = nd.subtract(self.b, self.delta_b * self.learning_rate)
+        self.W = nd.subtract(self.W, self.delta_W * (self.learning_rate / self.batch_size))
+        self.b = nd.subtract(self.b, self.delta_b * (self.learning_rate / self.batch_size))
 
         return output_bp
 

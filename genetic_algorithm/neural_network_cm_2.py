@@ -45,6 +45,7 @@ class NeuralNet(object):
 
         self.X = cmarray(self.X)
         self.Y = cmarray(self.Y)
+        self.Y_argmax = cmarray(self.Y_argmax)
 
         self.error_values = cm.empty((self.batch_size, self.num_class))
 
@@ -59,9 +60,9 @@ class NeuralNet(object):
 
     def build_model(self):
         print("Build the model...\n")
-        self.model.append(Layer("fc", self.input_length, 128, self.learning_rate, "sigmoid", self.batch_size))
-        self.model.append(Layer("fc", 128, 64, self.learning_rate, "sigmoid", self.batch_size))
-        self.model.append(Layer("fc", 64, 10, self.learning_rate, "sigmoid", self.batch_size))
+        self.model.append(Layer("fc", self.input_length, 10, self.learning_rate, "sigmoid", self.batch_size))
+        # self.model.append(Layer("fc", 128, 64, self.learning_rate, "sigmoid", self.batch_size))
+        # self.model.append(Layer("fc", 64, 10, self.learning_rate, "sigmoid", self.batch_size))
 
     def set_weights(self, individual):
         self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
@@ -325,13 +326,11 @@ class Layer(object):
 
         output_bp = cm.dot(self.delta_b, self.W.transpose())
 
-        self.delta_W.divide(input_error.shape[0])
-
         self.delta_b.sum(axis=0, target=self.b_prev)
-        self.b_prev.divide(input_error.shape[0])
+        assert self.batch_size == input_error.shape[0]
 
-        self.W.subtract(self.delta_W.mult(self.learning_rate))
-        self.b.subtract(self.b_prev.mult(self.learning_rate))
+        self.W.subtract(self.delta_W.mult(self.learning_rate / self.batch_size))
+        self.b.subtract(self.b_prev.mult(self.learning_rate / self.batch_size))
 
         return output_bp
 

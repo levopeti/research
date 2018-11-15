@@ -6,6 +6,9 @@ import os
 from abc import ABC, abstractmethod
 from scipy.signal import convolve2d
 from skimage.measure import block_reduce
+from pathos.multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count
 
 np.random.seed(int(time.time()))
 
@@ -358,13 +361,24 @@ class Conv2d(Layer):
         batch_input = self.prev_layer.output
         self.z = []
 
-        for conv_inputs in batch_input:
+        def conv_on_batch(conv_inputs):
             batch = []
             for conv_input in conv_inputs:
                 for i in range(self.W.shape[0]):
                     tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
                     batch.append(tmp)
-            self.z.append(batch)
+            return batch
+
+        # p = Pool(cpu_count())
+
+        with ThreadPoolExecutor(max_workers=36) as p:
+            results = p.map(conv_on_batch, batch_input)
+
+        for result in results:
+            self.z.append(result)
+
+        # p.terminate()
+        self.z = np.array(self.z)
 
         self.z = np.array(self.z)
         self.output = self.act(self.z)
@@ -478,11 +492,17 @@ class Pool2d(Layer):
         output = []
         batch_input = self.prev_layer.output
 
-        for pool_input in batch_input:
+        def pool_on_batch(pool_input):
             batch = []
             for x in pool_input:
                 batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
-            output.append(batch)
+            return batch
+
+        with ThreadPoolExecutor(max_workers=36) as p:
+            results = p.map(pool_on_batch, batch_input)
+
+        for result in results:
+            output.append(result)
 
         self.output = np.array(output)
 
@@ -494,7 +514,7 @@ class Pool2d(Layer):
         # TODO: More next layer
         output = []
 
-        for j in range(self.batch_size):
+        def pool_bp_on_batch(j):
             batch = []
             for i in range(self.prev_layer.output_size[0]):
                 tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
@@ -506,7 +526,13 @@ class Pool2d(Layer):
                 mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
                 tmp = tmp * mask
                 batch.append(tmp)
-            output.append(batch)
+            return batch
+
+        with ThreadPoolExecutor(max_workers=36) as p:
+            results = p.map(pool_bp_on_batch, list(range(self.batch_size)))
+
+        for result in results:
+            output.append(result)
 
         self.output_bp = np.array(output)
         self.prev_layer.backward_process(self.output_bp)

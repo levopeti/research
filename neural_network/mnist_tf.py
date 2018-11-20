@@ -1,5 +1,8 @@
 import tensorflow as tf
 import numpy as np
+import os
+
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 mnist = tf.keras.datasets.mnist
 
@@ -16,7 +19,7 @@ model = tf.keras.models.Sequential([
     # tf.keras.layers.Dense(256, input_shape=(784, ), activation=tf.nn.sigmoid),
     # tf.keras.layers.Dense(10, activation=tf.nn.softmax)
 ])
-model.compile(optimizer='adam',
+model.compile(optimizer='sgd',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 

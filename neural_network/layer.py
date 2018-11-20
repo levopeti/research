@@ -13,192 +13,23 @@ from multiprocessing import cpu_count
 np.random.seed(int(time.time()))
 
 
-class NeuralNet(object):
-    def __init__(self, input, output):
-        self.learning_rate = 0.1
-        self.loss = None
-        self.error = None
+class Input(object):
+    def __init__(self, input_size: tuple):
+        self.output_size = input_size
 
-        self.X = None
-        self.Y = None
-        self.Y_am = None        # Y argmax
+        self.output = None
+        self.next_layer = []
 
-        self.batch_size = None
-        self.num_batches = None
+    def set_next_layer(self, layer):
+        self.next_layer.append(layer)
 
-        self.input = input
-        self.output = output
+    def forward_process(self, x):
+        self.output = x
+        for layer in self.next_layer:
+            layer.forward_process()
 
-        self.model = None
-
-    def __del__(self):
+    def backward_process(self, input_error):
         pass
-
-    def build_model(self, loss="MSE", learning_rate=0.1):
-        print("Build the model...\n")
-
-        self.learning_rate = learning_rate
-        self.loss = self.loss_func(loss)
-        self.error = self.error_func(loss)
-
-    def set_weights(self, individual):
-        self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
-        self.b = np.array(individual[-10:])  # shape (10,)
-
-    def get_weights_as_genes(self):
-        return np.concatenate((np.reshape(self.W, (7840,)), self.b), axis=None)
-
-    def save_weights(self):
-        weights = []
-        for layer in self.model:
-            weights.append(layer.W)
-            weights.append(layer.b)
-
-        with open(os.path.join('weights.txt'), 'wb') as fp:
-            pickle.dump(weights, fp)
-
-    def evaluate(self):
-        """Evaluate the model."""
-        global_loss = 0
-        predicted_values = []
-
-        for b in range(self.num_batches):
-            print(b)
-
-            # forward process
-            start, end = b * self.batch_size, (b + 1) * self.batch_size
-            self.forward(start, end)
-            o = self.output.output
-
-            loss, predicted_value = self.loss(o, self.Y[start: end])
-            predicted_values.append(predicted_value)
-
-            global_loss += loss
-
-        predicted_values = np.array(predicted_values).reshape(-1,)
-
-        return global_loss, self.accurate_func(np.array(predicted_values))
-
-    def train_step(self):
-        """Train one epoch on the network with backpropagation."""
-
-        for b in range(self.num_batches):
-            print(b)
-
-            # forward
-            start_time = time.time()
-            start, end = b * self.batch_size, (b + 1) * self.batch_size
-            self.forward(start, end)
-            o = self.output.output
-            # print("Time of forward: {}s".format(time.time() - start_time))
-            error = self.error(o, self.Y[start: end])
-
-            # backward
-            start_time = time.time()
-            self.backward(error)
-            # print("Time of backward: {}s".format(time.time() - start_time))
-            # input()
-
-    def forward(self, start, end):
-        self.input.forward_process(self.X[start: end])
-
-    def backward(self, error):
-        # for the first layer the output_bp = error
-        self.output.backward_process(error)
-
-    def train(self, X, Y, epochs, batch_size):
-        self.X = X
-        self.Y = Y
-        self.Y_am = np.argmax(Y, axis=1)
-
-        self.batch_size = batch_size
-        self.num_batches = self.X.shape[0] // self.batch_size
-
-        print("Start training the model...\n")
-
-        for i in range(epochs):
-            start = time.time()
-            self.train_step()
-            loss_value, accurate = self.evaluate()
-
-            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate * 100), "Loss: {0:.4f}\t".format(loss_value), "ETA: {0:.2f}s\n".format(time.time() - start))
-            if i == 30:
-                self.learning_rate *= 0.5
-
-    def accurate_func(self, pred):
-        goal = 0
-        for i in range(pred.shape[0]):
-
-            if pred[i] == np.argmax(self.Y[i]):
-                goal += 1
-        return goal / pred.shape[0]
-
-    def loss_func(self, type):
-        def mse(o, y):
-            return np.square(o - y).sum() * 0.5 / self.X.shape[0], np.argmax(o, axis=1)
-
-        def xe(o, y):
-            return self.cross_entropy(o, y), np.argmax(self.softmax(o))
-
-        if type == "MSE":
-            return mse
-
-        elif type == "XE":
-            return xe
-
-    def error_func(self, type):
-        def mse(o, y):
-            return np.subtract(o, y)
-
-        def xe(o, y):
-            return self.d_cross_entropy(o, y)[0]
-
-        if type == "MSE":
-            return mse
-
-        elif type == "XE":
-            return xe
-
-    @staticmethod
-    def softmax(x):
-        """Compute softmax values for each sets of scores in x."""
-        e_x = np.exp(x - np.max(x))
-        return e_x / e_x.sum()
-
-    def cross_entropy(self, x, y):
-        """
-        X is the output from fully connected layer (num_examples x num_classes)
-        y is labels (num_examples x 1)
-        Note that y is not one-hot encoded vector.
-        It can be computed as y.argmax(axis=1) from one-hot encoded vectors of labels if required.
-        """
-        y = np.array(y).reshape((1, -1))
-        x = np.array(x).reshape((1, -1))
-        y = y.argmax(axis=1)
-        m = y.shape[0]
-        p = self.softmax(x)
-        # We use multidimensional array indexing to extract
-        # softmax probability of the correct label for each sample.
-        # Refer to https://docs.scipy.org/doc/numpy/user/basics.indexing.html#indexing-multi-dimensional-arrays for understanding multidimensional array indexing.
-        log_likelihood = -np.log(p[range(m), y])
-        loss = np.sum(log_likelihood) / m
-        return loss
-
-    def d_cross_entropy(self, x, y):
-        """
-        X is the output from fully connected layer (num_examples x num_classes)
-        y is labels (num_examples x 1)
-        Note that y is not one-hot encoded vector.
-        It can be computed as y.argmax(axis=1) from one-hot encoded vectors of labels if required.
-        """
-        y = np.array(y).reshape((1, -1))
-        x = np.array(x).reshape((1, -1))
-        y = y.argmax(axis=1)
-        m = y.shape[0]
-        grad = self.softmax(x)
-        grad[range(m), y] -= 1
-        grad = grad / m
-        return grad
 
 
 class Layer(ABC):
@@ -336,7 +167,7 @@ class Conv2d(Layer):
     def __new__(cls, number_of_kernel, kernel_size, activation="sigmoid", learning_rate=0.1):
         def set_prev_layer(layer):
             instance = super(Conv2d, cls).__new__(cls)
-            instance.__init__(number_of_kernel, kernel_size, activation=activation, learning_rate=learning_rate, prev_layer=layer)
+            instance.__init__(number_of_kernel=number_of_kernel, kernel_size=kernel_size, activation=activation, learning_rate=learning_rate, prev_layer=layer)
             return instance
         return set_prev_layer
 
@@ -538,68 +369,68 @@ class Pool2d(Layer):
         self.prev_layer.backward_process(self.output_bp)
 
 
-# TODO: class Concat:
+class Concat(Layer):
+    def __new__(cls, axis=1):
+        def set_prev_layer(layer):
+            """
+            layer: list of the concatenated layers [x1, x2]
+            """
+            instance = super(Concat, cls).__new__(cls)
+            instance.__init__(prev_layer=layer, axis=axis)
+            return instance
+        return set_prev_layer
+
+    def __init__(self, prev_layer=None, axis=1):
+        super().__init__(prev_layer=prev_layer)
+        self.axis = axis
+        self.batch_size = 100
+        self.set_output_size()
+
+        log = "Flatten layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
+        print(log)
+
+    def set_prev_layer(self):
+        self.input_size = []
+
+        for layer in self.prev_layer:
+            layer.set_next_layer(self)
+            self.input_size.append(layer.output_size)
+
+    def set_output_size(self):
+        # TODO: by axis = 0 order alternately
+        output_size_at_axis = 0
+        output_size = []
+
+        for layer in self.prev_layer:
+            output_size_at_axis += layer.output_size[self.axis]
+
+        for i, size in enumerate(self.prev_layer[0].output_size):
+            if i == self.axis:
+                output_size.append(output_size_at_axis)
+            else:
+                output_size.append(size)
+
+        self.output_size = tuple(output_size)
+
+    def forward_process(self):
+        """Flatten connected layer forward process."""
+        x = self.prev_layer.output
+        self.output = x.reshape(self.batch_size, -1)
+
+        for layer in self.next_layer:
+            layer.forward_process()
+
+    def backward_process(self, input_error):
+        """Flatten connected layer backward process"""
+        # TODO: More next layer
+        self.output_bp = input_error.reshape((self.batch_size, self.prev_layer.output_size[0], self.prev_layer.output_size[1], self.prev_layer.output_size[2]))
+        self.prev_layer.backward_process(self.output_bp)
+
+
 # TODO: class Add:
 # TODO: class Subtract:
 # TODO: class Dropout:
 # TODO: class Batchnorm:
 # TODO: class sparse XE:
-
-
-class Input(object):
-    def __init__(self, input_size: tuple):
-        self.output_size = input_size
-
-        self.output = None
-        self.next_layer = []
-
-    def set_next_layer(self, layer):
-        self.next_layer.append(layer)
-
-    def forward_process(self, x):
-        self.output = x
-        for layer in self.next_layer:
-            layer.forward_process()
-
-    def backward_process(self, input_error):
-        pass
-
-
-if __name__ == "__main__":
-    num_class = 10
-    mnist = tf.keras.datasets.mnist
-    fashion = False
-    if fashion:
-        from keras.datasets import fashion_mnist
-
-        mnist = fashion_mnist
-
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0
-    # x_train = np.reshape(x_train, (-1, 28 * 28))
-    # x_test = np.reshape(x_test, (-1, 28 * 28))
-    x_train = np.reshape(x_train, (-1, 1, 28, 28))
-    x_test = np.reshape(x_test, (-1, 1, 28, 28))
-
-    X = np.array(np.append(x_train, x_test, axis=0))
-    Y = np.eye(num_class)[np.append(y_train, y_test)]  # one hot vectors
-
-    ip = Input(input_size=(1, 28, 28))
-    x = Conv2d(number_of_kernel=10, kernel_size=5, activation="relu")(ip)
-    x = Pool2d(kernel_size=3)(x)
-    x = Conv2d(number_of_kernel=10, kernel_size=3, activation="relu")(x)
-    x = Pool2d(kernel_size=2)(x)
-    x = Flatten()(x)
-    x = Dense(units=128, activation="sigmoid", learning_rate=1)(x)
-    x = Dense(units=64, activation="sigmoid", learning_rate=1)(x)
-    op = Dense(units=num_class, activation="sigmoid", learning_rate=1)(x)
-
-    nn = NeuralNet(ip, op)
-    nn.build_model(loss="MSE", learning_rate=0.1)
-    nn.train(X[:60000], Y[:60000], epochs=5, batch_size=100)
-    # nn.save_weights()
-
-    # TODO: optimizers
-    # TODO: batch size in layers
 
 

@@ -12,6 +12,9 @@ from multiprocessing import cpu_count
 
 np.random.seed(int(time.time()))
 
+POOL = False
+MAX_WORKERS = 2
+
 
 class Input(object):
     def __init__(self, input_size: tuple):
@@ -236,23 +239,33 @@ class Conv2d(Layer):
         batch_input = self.prev_layer.output
         self.z = []
 
-        def conv_on_batch(conv_inputs):
-            batch = []
-            for conv_input in conv_inputs:
-                for i in range(self.W.shape[0]):
-                    tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
-                    batch.append(tmp)
-            return batch
+        if POOL:
+            def conv_on_batch(conv_inputs):
+                batch = []
+                for conv_input in conv_inputs:
+                    for i in range(self.W.shape[0]):
+                        tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
+                        batch.append(tmp)
+                return batch
 
-        # p = Pool(cpu_count())
+            # p = Pool(cpu_count())
 
-        with ThreadPoolExecutor(max_workers=1) as p:
-            results = p.map(conv_on_batch, batch_input)
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as p:
+                results = p.map(conv_on_batch, batch_input)
 
-        for result in results:
-            self.z.append(result)
+            for result in results:
+                self.z.append(result)
 
-        # p.terminate()
+            # p.terminate()
+        else:
+            for conv_inputs in batch_input:
+                batch = []
+                for conv_input in conv_inputs:
+                    for i in range(self.W.shape[0]):
+                        tmp = convolve2d(conv_input, self.W[i], mode="valid") + self.b[i]
+                        batch.append(tmp)
+                self.z.append(batch)
+
         self.z = np.array(self.z)
 
         self.z = np.array(self.z)
@@ -391,17 +404,24 @@ class Pool2d(Layer):
         output = []
         batch_input = self.prev_layer.output
 
-        def pool_on_batch(pool_input):
-            batch = []
-            for x in pool_input:
-                batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
-            return batch
+        if POOL:
+            def pool_on_batch(pool_input):
+                batch = []
+                for x in pool_input:
+                    batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
+                return batch
 
-        with ThreadPoolExecutor(max_workers=1) as p:
-            results = p.map(pool_on_batch, batch_input)
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as p:
+                results = p.map(pool_on_batch, batch_input)
 
-        for result in results:
-            output.append(result)
+            for result in results:
+                output.append(result)
+        else:
+            for pool_input in batch_input:
+                batch = []
+                for x in pool_input:
+                    batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
+                output.append(batch)
 
         self.output = np.array(output)
 
@@ -416,25 +436,41 @@ class Pool2d(Layer):
         # TODO: More next layer
         output = []
 
-        def pool_bp_on_batch(j):
-            batch = []
-            for i in range(self.prev_layer.output_size[1]):
-                tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-                tmp = tmp[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
+        if POOL:
+            def pool_bp_on_batch(j):
+                batch = []
+                for i in range(self.prev_layer.output_size[1]):
+                    tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                    tmp = tmp[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
 
-                tmp2 = self.output[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-                tmp2 = tmp2[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
+                    tmp2 = self.output[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                    tmp2 = tmp2[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
 
-                mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
-                tmp = tmp * mask
-                batch.append(tmp)
-            return batch
+                    mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
+                    tmp = tmp * mask
+                    batch.append(tmp)
+                return batch
 
-        with ThreadPoolExecutor(max_workers=1) as p:
-            results = p.map(pool_bp_on_batch, list(range(self.batch_size)))
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as p:
+                results = p.map(pool_bp_on_batch, list(range(self.batch_size)))
 
-        for result in results:
-            output.append(result)
+            for result in results:
+                output.append(result)
+        else:
+            for j in range(self.batch_size):
+                batch = []
+                for i in range(self.prev_layer.output_size[1]):
+                    input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                    tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                    tmp = tmp[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
+
+                    tmp2 = self.output[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
+                    tmp2 = tmp2[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
+
+                    mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
+                    tmp = tmp * mask
+                    batch.append(tmp)
+                output.append(batch)
 
         self.output_bp = np.array(output)
         assert self.output_bp.shape == self.input_size
@@ -541,7 +577,82 @@ class Concat(Layer):
             layer.backward_process(self.output_bp[i])
 
 
-# TODO: class Add:
+class Add(Layer):
+    def __new__(cls, weights_of_layers=None):
+        def set_prev_layer(layer):
+            """
+            layer: list of the added layers [x1, x2]
+            """
+            instance = super(Add, cls).__new__(cls)
+            instance.__init__(prev_layer=layer, weights_of_layers=None)
+            return instance
+        return set_prev_layer
+
+    def __init__(self, prev_layer=None, weights_of_layers=None):
+        super().__init__(prev_layer=prev_layer)
+        # weigths at the addition
+        if weights_of_layers:
+            self.weights_of_layers = weights_of_layers
+        else:
+            self.weights_of_layers = [1, 1]
+
+    def set_size_forward(self, batch_size, learning_rate):
+        os0 = self.prev_layer[0].output_size
+        os1 = self.prev_layer[1].output_size
+
+        if os0 is not None and os1 is not None:
+            assert os0 == os1
+            self.batch_size = batch_size
+
+            self.output_size = os0
+            self.input_size = os0
+
+            log = "Add layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
+            print(log)
+
+            for layer in self.next_layer:
+                layer.set_size_forward(batch_size, learning_rate)
+        else:
+            # It takes the process back to a not calculated layer.
+            pass
+
+    def prev_layer_set_next_layer(self):
+
+        for layer in self.prev_layer:
+            layer.set_next_layer(self)
+
+    def forward_process(self):
+        """Concatenate layer forward process."""
+        # TODO: by axis = 0 order alternately
+        x0 = self.prev_layer[0].output
+        x1 = self.prev_layer[1].output
+
+        if x0 is not None and x1 is not None:
+            try:
+                x0 *= self.weights_of_layers[0]
+                x1 *= self.weights_of_layers[1]
+
+                self.output = np.add(x0, x1)
+            except ValueError:
+                print("In layer Add, the two layers don't have the same shape!")
+
+            assert self.output.shape == self.output_size
+
+            for layer in self.next_layer:
+                layer.forward_process()
+        else:
+            # It takes the process back to a not calculated layer.
+            pass
+
+    def backward_process(self, input_error):
+        """Concatenate layer backward process"""
+        # print("add backward")
+        self.output_bp = input_error
+        assert self.output_bp.shape == self.input_size
+
+        for i, layer in enumerate(self.prev_layer):
+            layer.backward_process(self.output_bp * self.weights_of_layers[i])
+
 # TODO: class Subtract:
 # TODO: class Dropout:
 # TODO: class Batchnorm:

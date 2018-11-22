@@ -69,8 +69,9 @@ class NeuralNet(object):
             self.forward(start, end)
             o = self.output.output
 
-            loss, predicted_value = self.loss(o, self.Y[start: end])
-            # print(loss.shape)
+            loss, predicted_value = self.loss(o, self.Y[start:end])
+            # print(loss)
+            # print(predicted_value.shape)
             # exit()
             predicted_values.append(predicted_value)
 
@@ -93,7 +94,7 @@ class NeuralNet(object):
             o = self.output.output
 
             # print("Time of forward: {}s".format(time.time() - start_time))
-            error = self.error(o, self.Y[start: end])
+            error = self.error(o, self.Y[start:end])
 
             # backward
             start_time = time.time()
@@ -155,6 +156,9 @@ class NeuralNet(object):
             return np.subtract(o, y)
 
         def xe(o, y):
+            """
+            d_cross_entropy
+            """
             prediction = self.softmax(o)
             return np.subtract(prediction, y)
 
@@ -184,6 +188,7 @@ class NeuralNet(object):
         It can be computed as y.argmax(axis=1) from one-hot encoded vectors of labels if required.
         https://deepnotes.io/softmax-crossentropy
         Return size is a scalar.
+        cost = -(1.0/m) * np.sum(np.dot(np.log(A), Y.T) + np.dot(np.log(1-A), (1-Y).T))
         """
         # y = y.argmax(axis=1)
         m = y.shape[0]
@@ -219,23 +224,22 @@ if __name__ == "__main__":
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
-    # x_train = np.reshape(x_train, (-1, 28 * 28))
-    # x_test = np.reshape(x_test, (-1, 28 * 28))
-    x_train = np.reshape(x_train, (-1, 1, 28, 28))
-    x_test = np.reshape(x_test, (-1, 1, 28, 28))
+    x_train = np.reshape(x_train, (-1, 1, 28 * 28))
+    x_test = np.reshape(x_test, (-1, 1, 28 * 28))
+    # x_train = np.reshape(x_train, (-1, 1, 28, 28))
+    # x_test = np.reshape(x_test, (-1, 1, 28, 28))
 
     X = np.array(np.append(x_train, x_test, axis=0))
     Y = np.eye(num_class)[np.append(y_train, y_test)].reshape(-1, 1, 10)  # one hot vectors shape: (70000, 1, 10)
 
-    ip = Input(input_size=(1, 28, 28))
-    x = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
-    x = Add()([x, y])
-    x = Pool2d(kernel_size=5)(x)
-    y = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
-    a = Add()([x, y])
-    y = Pool2d(kernel_size=5)(y)
-    c = Concat(axis=1)([x, y])
-    f = Flatten()(c)
+    ip = Input(input_size=(1, 784))
+    # x = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
+    # x = Pool2d(kernel_size=5)(x)
+    # y = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
+    # y = Pool2d(kernel_size=5)(y)
+    # a = Add(weights_of_layers=[1, 3])([x, y])
+    # # c = Concat(axis=1)([x, y])
+    # f = Flatten()(a)
     # x1 = Dense(units=50, activation="sigmoid")(f)
     # y1 = Dense(units=20, activation="sigmoid")(x1)
     # y2 = Dense(units=20, activation="sigmoid", learning_rate=1)(x1)
@@ -247,7 +251,7 @@ if __name__ == "__main__":
     # c2 = Concat(axis=1)([z1, z2])
 
     # c = Concat(axis=1)([c1, c2])
-    op = Dense(units=num_class, activation="sigmoid")(f)
+    op = Dense(units=num_class, activation="sigmoid")(ip)
 
     nn = NeuralNet(ip, op)
     nn.build_model(loss="XE", learning_rate=0.1, batch_size=100)
@@ -256,5 +260,5 @@ if __name__ == "__main__":
 
     # TODO: optimizers
     # TODO: batch size in layers
-
+    # TODO: save weigths
 

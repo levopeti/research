@@ -3,7 +3,7 @@ import tensorflow as tf
 import time
 import pickle
 import os
-from layer import Input, Dense, Conv2d, Pool2d, Flatten, Concat
+from layer import Input, Dense, Conv2d, Pool2d, Flatten, Concat, Add
 
 np.random.seed(int(time.time()))
 
@@ -229,11 +229,13 @@ if __name__ == "__main__":
 
     ip = Input(input_size=(1, 28, 28))
     x = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
+    x = Add()([x, y])
     x = Pool2d(kernel_size=5)(x)
-    # y = Conv2d(number_of_kernel=5, kernel_size=3, activation="relu")(ip)
-    # y = Pool2d(kernel_size=3)(y)
-    # c = Concat(axis=1)([x, y])
-    f = Flatten()(x)
+    y = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
+    a = Add()([x, y])
+    y = Pool2d(kernel_size=5)(y)
+    c = Concat(axis=1)([x, y])
+    f = Flatten()(c)
     # x1 = Dense(units=50, activation="sigmoid")(f)
     # y1 = Dense(units=20, activation="sigmoid")(x1)
     # y2 = Dense(units=20, activation="sigmoid", learning_rate=1)(x1)

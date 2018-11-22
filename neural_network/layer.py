@@ -15,10 +15,24 @@ np.random.seed(int(time.time()))
 
 class Input(object):
     def __init__(self, input_size: tuple):
-        self.output_size = input_size
+        self.input_size = input_size
+        self.output_size = None
+        self.batch_size = None
 
         self.output = None
         self.next_layer = []
+
+    def set_size_forward(self, batch_size, learning_rate):
+        self.batch_size = batch_size
+        output_size = [batch_size]
+
+        for size in self.input_size:
+            output_size.append(size)
+
+        self.output_size = tuple(output_size)
+
+        for layer in self.next_layer:
+            layer.set_size_forward(batch_size, learning_rate)
 
     def set_next_layer(self, layer):
         self.next_layer.append(layer)
@@ -29,13 +43,16 @@ class Input(object):
             layer.forward_process()
 
     def backward_process(self, input_error):
+        # print("input backward")
+        # input()
         pass
 
 
 class Layer(ABC):
-    def __init__(self, activation="sigmoid", learning_rate=0.1, prev_layer=None):
+    def __init__(self, activation="sigmoid", learning_rate=None, prev_layer=None):
         self.input_size = None
         self.output_size = None
+        self.batch_size = None
         self.learning_rate = learning_rate
 
         self.act = self.act_func(activation)
@@ -51,13 +68,13 @@ class Layer(ABC):
         self.prev_layer = prev_layer
         self.next_layer = []
 
-        self.set_prev_layer()
+        self.prev_layer_set_next_layer()
 
         # convention of input shape
 
-    def set_prev_layer(self):
-        self.prev_layer.set_next_layer(self)
-        self.input_size = self.prev_layer.output_size
+    @abstractmethod
+    def set_size_forward(self, batch_size, learning_rate):
+        pass
 
     @abstractmethod
     def forward_process(self):
@@ -69,6 +86,9 @@ class Layer(ABC):
 
     def set_next_layer(self, layer):
         self.next_layer.append(layer)
+
+    def prev_layer_set_next_layer(self):
+        self.prev_layer.set_next_layer(self)
 
     def act_func(self, type):
         if type == "tanh":
@@ -115,24 +135,34 @@ class Layer(ABC):
 
 
 class Dense(Layer):
-    def __new__(cls, units, activation="sigmoid", learning_rate=0.1):
+    def __new__(cls, units, activation="sigmoid", learning_rate=None):
         def set_prev_layer(layer):
             instance = super(Dense, cls).__new__(cls)
             instance.__init__(units, activation=activation, learning_rate=learning_rate, prev_layer=layer)
             return instance
         return set_prev_layer
 
-    def __init__(self, units, activation="sigmoid", learning_rate=0.1, prev_layer=None):
+    def __init__(self, units, activation="sigmoid", learning_rate=None, prev_layer=None):
         super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
-        self.batch_size = 100
-        self.output_size = (self.batch_size, units)
+        self.units = units
 
-        self.W = (np.random.rand(self.input_size[1], self.output_size[1]) * 1) - 0.5
-        self.b = (np.random.rand(self.output_size[1]) * 1) - 0.5
+    def set_size_forward(self, batch_size, learning_rate):
+        self.batch_size = batch_size
+        self.input_size = self.prev_layer.output_size
+        self.output_size = (self.batch_size, 1, self.units)
+
+        if not self.learning_rate:
+            self.learning_rate = learning_rate
+
+        self.W = (np.random.rand(self.input_size[2], self.output_size[2]) * 1) - 0.5
+        self.b = (np.random.rand(self.output_size[2]) * 1) - 0.5
         # self.b = np.zeros(self.output_size)
 
         log = "Dense layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
         print(log)
+
+        for layer in self.next_layer:
+            layer.set_size_forward(batch_size, learning_rate)
 
     def forward_process(self):
         """Fully connected layer forward process."""
@@ -140,25 +170,30 @@ class Dense(Layer):
         self.z = np.add(np.dot(x, self.W), self.b)
         self.output = self.act(self.z)
 
+        assert self.output.shape == self.output_size
+
         for layer in self.next_layer:
             layer.forward_process()
 
     def backward_process(self, input_error):
         """Fully connected layer backward process"""
+        # print("dense backward")
         # TODO: More next layer
         d_act_z = self.d_act(self.z)
 
         delta_b = np.multiply(input_error, d_act_z)
         x = self.prev_layer.output
-        x = np.transpose(x)
+        x = np.transpose(x, axes=(0, 2, 1))  # transpose the last two axis
 
         self.output_bp = np.dot(delta_b, np.transpose(self.W))
 
-        delta_W = np.dot(x, delta_b)
-        delta_b = np.sum(delta_b, axis=0)
+        delta_W = np.tensordot(x, delta_b, axes=([0, 2], [0, 1]))
+        delta_b = np.sum(delta_b, axis=0).reshape(-1)
 
         self.W = np.subtract(self.W, delta_W * (self.learning_rate / self.batch_size))
         self.b = np.subtract(self.b, delta_b * (self.learning_rate / self.batch_size))
+
+        assert self.output_bp.shape == self.input_size
 
         self.prev_layer.backward_process(self.output_bp)
 
@@ -175,17 +210,26 @@ class Conv2d(Layer):
         super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
         self.kernel_size = kernel_size
         self.number_of_kernel = number_of_kernel
-        self.batch_size = 100
-
-        # with 'valid' convolution
-        self.output_size = (self.number_of_kernel * self.input_size[0], self.input_size[1] - (self.kernel_size - 1), self.input_size[2] - (self.kernel_size - 1))
 
         self.W = (np.random.rand(self.number_of_kernel, self.kernel_size, self.kernel_size) * 1) - 0.5
         self.b = (np.random.rand(self.number_of_kernel) * 1) - 0.5
         # self.b = np.zeros(self.output_size)
 
+    def set_size_forward(self, batch_size, learning_rate):
+        self.batch_size = batch_size
+        self.input_size = self.prev_layer.output_size
+
+        if not self.learning_rate:
+            self.learning_rate = learning_rate
+
+        # with 'valid' convolution
+        self.output_size = (self.batch_size, self.number_of_kernel * self.input_size[1], self.input_size[2] - (self.kernel_size - 1), self.input_size[3] - (self.kernel_size - 1))
+
         log = "2D convolution layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
         print(log)
+
+        for layer in self.next_layer:
+            layer.set_size_forward(batch_size, learning_rate)
 
     def forward_process(self):
         """2d convolution layer forward process."""
@@ -202,7 +246,7 @@ class Conv2d(Layer):
 
         # p = Pool(cpu_count())
 
-        with ThreadPoolExecutor(max_workers=36) as p:
+        with ThreadPoolExecutor(max_workers=1) as p:
             results = p.map(conv_on_batch, batch_input)
 
         for result in results:
@@ -214,11 +258,14 @@ class Conv2d(Layer):
         self.z = np.array(self.z)
         self.output = self.act(self.z)
 
+        assert self.output.shape == self.output_size
+
         for layer in self.next_layer:
             layer.forward_process()
 
     def backward_process(self, input_error):
         """2d convolution layer backward process"""
+        # print("conv2d backward")
         g = input_error
         d_act_z = self.d_act(self.z)
         delta_batch = g * d_act_z
@@ -257,6 +304,8 @@ class Conv2d(Layer):
                 self.W[i] = np.subtract(self.W[i], delta_W * self.learning_rate)
 
         self.output_bp = np.array(output_bp)
+        assert self.output_bp.shape == self.input_size
+
         self.prev_layer.backward_process(self.output_bp)
 
 
@@ -270,30 +319,42 @@ class Flatten(Layer):
 
     def __init__(self, prev_layer=None):
         super().__init__(prev_layer=prev_layer)
-        self.batch_size = 100
+
+    def set_size_forward(self, batch_size, learning_rate):
+        self.batch_size = batch_size
+        self.input_size = self.prev_layer.output_size
+
         self.set_output_size()
 
         log = "Flatten layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
         print(log)
 
+        for layer in self.next_layer:
+            layer.set_size_forward(batch_size, learning_rate)
+
     def set_output_size(self):
         output_size = 1
-        for i in self.input_size:
+        for i in self.input_size[1:]:
             output_size *= i
-        self.output_size = (1, output_size)
+        self.output_size = (self.batch_size, 1, output_size)
 
     def forward_process(self):
         """Flatten connected layer forward process."""
         x = self.prev_layer.output
-        self.output = x.reshape(self.batch_size, -1)
+        self.output = x.reshape(self.batch_size, 1, -1)
+
+        assert self.output.shape == self.output_size
 
         for layer in self.next_layer:
             layer.forward_process()
 
     def backward_process(self, input_error):
         """Flatten connected layer backward process"""
+        # print("flatten backward")
         # TODO: More next layer
-        self.output_bp = input_error.reshape((self.batch_size, self.prev_layer.output_size[0], self.prev_layer.output_size[1], self.prev_layer.output_size[2]))
+        self.output_bp = input_error.reshape(self.prev_layer.output_size)
+        assert self.output_bp.shape == self.input_size
+
         self.prev_layer.backward_process(self.output_bp)
 
 
@@ -308,15 +369,22 @@ class Pool2d(Layer):
     def __init__(self, kernel_size, prev_layer=None):
         super().__init__(prev_layer=prev_layer)
         self.kernel_size = kernel_size
-        self.batch_size = 100
+
+    def set_size_forward(self, batch_size, learning_rate):
+        self.batch_size = batch_size
+        self.input_size = self.prev_layer.output_size
+
         self.set_output_size()
 
         log = "2D pool layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
         print(log)
 
+        for layer in self.next_layer:
+            layer.set_size_forward(batch_size, learning_rate)
+
     def set_output_size(self):
-        output = block_reduce(np.zeros((self.input_size[1], self.input_size[2])), block_size=(self.kernel_size, self.kernel_size), func=np.max)
-        self.output_size = (self.input_size[0], output.shape[0], output.shape[1])
+        output = block_reduce(np.zeros((self.input_size[2], self.input_size[3])), block_size=(self.kernel_size, self.kernel_size), func=np.max)
+        self.output_size = (self.batch_size, self.input_size[1], output.shape[0], output.shape[1])
 
     def forward_process(self):
         """Flatten connected layer forward process."""
@@ -329,7 +397,7 @@ class Pool2d(Layer):
                 batch.append(block_reduce(x, block_size=(self.kernel_size, self.kernel_size), func=np.max))
             return batch
 
-        with ThreadPoolExecutor(max_workers=36) as p:
+        with ThreadPoolExecutor(max_workers=1) as p:
             results = p.map(pool_on_batch, batch_input)
 
         for result in results:
@@ -337,35 +405,40 @@ class Pool2d(Layer):
 
         self.output = np.array(output)
 
+        assert self.output.shape == self.output_size
+
         for layer in self.next_layer:
             layer.forward_process()
 
     def backward_process(self, input_error):
         """Flatten connected layer backward process"""
+        # print("pool2d backward")
         # TODO: More next layer
         output = []
 
         def pool_bp_on_batch(j):
             batch = []
-            for i in range(self.prev_layer.output_size[0]):
+            for i in range(self.prev_layer.output_size[1]):
                 tmp = input_error[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-                tmp = tmp[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+                tmp = tmp[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
 
                 tmp2 = self.output[j][i].repeat(self.kernel_size, axis=0).repeat(self.kernel_size, axis=1)
-                tmp2 = tmp2[:self.prev_layer.output_size[1], :self.prev_layer.output_size[2]]
+                tmp2 = tmp2[:self.prev_layer.output_size[2], :self.prev_layer.output_size[3]]
 
                 mask = np.equal(self.prev_layer.output[j][i], tmp2).astype(int)
                 tmp = tmp * mask
                 batch.append(tmp)
             return batch
 
-        with ThreadPoolExecutor(max_workers=36) as p:
+        with ThreadPoolExecutor(max_workers=1) as p:
             results = p.map(pool_bp_on_batch, list(range(self.batch_size)))
 
         for result in results:
             output.append(result)
 
         self.output_bp = np.array(output)
+        assert self.output_bp.shape == self.input_size
+
         self.prev_layer.backward_process(self.output_bp)
 
 
@@ -382,22 +455,43 @@ class Concat(Layer):
 
     def __init__(self, prev_layer=None, axis=1):
         super().__init__(prev_layer=prev_layer)
-        self.axis = axis
-        self.batch_size = 100
-        self.set_output_size()
+        self.axis = axis + 1  # because the batch size
 
-        log = "Flatten layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
-        print(log)
+    def set_size_forward(self, batch_size, learning_rate):
+        os0 = self.prev_layer[0].output_size
+        os1 = self.prev_layer[1].output_size
 
-    def set_prev_layer(self):
-        self.input_size = []
+        if os0 is not None and os1 is not None:
+            self.batch_size = batch_size
+
+            self.set_output_size()
+            self.set_input_size()
+
+            log = "Concat layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(0, self.input_size, self.output_size)
+            print(log)
+
+            for layer in self.next_layer:
+                layer.set_size_forward(batch_size, learning_rate)
+        else:
+            # It takes the process back to a not calculated layer.
+            pass
+
+    def prev_layer_set_next_layer(self):
 
         for layer in self.prev_layer:
             layer.set_next_layer(self)
-            self.input_size.append(layer.output_size)
+
+    def set_input_size(self):
+        input_size = []
+
+        for layer in self.prev_layer:
+            input_size.append(layer.output_size)
+
+        self.input_size = tuple(input_size)
 
     def set_output_size(self):
         # TODO: by axis = 0 order alternately
+
         output_size_at_axis = 0
         output_size = []
 
@@ -413,18 +507,38 @@ class Concat(Layer):
         self.output_size = tuple(output_size)
 
     def forward_process(self):
-        """Flatten connected layer forward process."""
-        x = self.prev_layer.output
-        self.output = x.reshape(self.batch_size, -1)
+        """Concatenate layer forward process."""
+        # TODO: by axis = 0 order alternately
+        x0 = self.prev_layer[0].output
+        x1 = self.prev_layer[1].output
 
-        for layer in self.next_layer:
-            layer.forward_process()
+        if x0 is not None and x1 is not None:
+            try:
+                self.output = np.concatenate((x0, x1), axis=self.axis)
+            except ValueError:
+                print("In layer Concat, the two layers don't have the same dimension at the appropriate axis!")
+
+            assert self.output.shape == self.output_size
+
+            for layer in self.next_layer:
+                layer.forward_process()
+        else:
+            # It takes the process back to a not calculated layer.
+            pass
 
     def backward_process(self, input_error):
-        """Flatten connected layer backward process"""
-        # TODO: More next layer
-        self.output_bp = input_error.reshape((self.batch_size, self.prev_layer.output_size[0], self.prev_layer.output_size[1], self.prev_layer.output_size[2]))
-        self.prev_layer.backward_process(self.output_bp)
+        """Concatenate layer backward process"""
+        # print("concat backward")
+        # TODO: by axis = 0 order alternately
+        s0 = self.prev_layer[0].output_size[self.axis]
+        s1 = self.prev_layer[1].output_size[self.axis]
+
+        self.output_bp = np.split(input_error, [s0], axis=self.axis)
+
+        assert self.output_bp[1].shape[self.axis] == s1
+
+        for i, layer in enumerate(self.prev_layer):
+            layer.backward_process(self.output_bp[i])
 
 
 # TODO: class Add:

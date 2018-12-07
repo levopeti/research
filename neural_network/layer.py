@@ -1,14 +1,11 @@
 import numpy as np
-import tensorflow as tf
 import time
-import pickle
-import os
+
 from abc import ABC, abstractmethod
 from scipy.signal import convolve2d
 from skimage.measure import block_reduce
-from pathos.multiprocessing import Pool
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import cpu_count
+# from multiprocessing import cpu_count
 
 np.random.seed(int(time.time()))
 
@@ -50,6 +47,14 @@ class Input(object):
         # input()
         pass
 
+    def save_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
+
 
 class Layer(ABC):
     def __init__(self, activation="sigmoid", learning_rate=None, prev_layer=None):
@@ -85,6 +90,14 @@ class Layer(ABC):
 
     @abstractmethod
     def backward_process(self, input_error):
+        pass
+
+    @abstractmethod
+    def save_weights(self, w_array):
+        pass
+
+    @abstractmethod
+    def load_weights(self, w_array):
         pass
 
     def set_next_layer(self, layer):
@@ -154,7 +167,7 @@ class Dense(Layer):
         self.input_size = self.prev_layer.output_size
         self.output_size = (self.batch_size, 1, self.units)
 
-        if not self.learning_rate:
+        if self.learning_rate is None:
             self.learning_rate = learning_rate
 
         self.W = (np.random.rand(self.input_size[2], self.output_size[2]) * 1) - 0.5
@@ -166,6 +179,24 @@ class Dense(Layer):
 
         for layer in self.next_layer:
             layer.set_size_forward(batch_size, learning_rate)
+
+    def save_weights(self, w_array):
+        w_array.append(self.W)
+        w_array.append(self.b)
+
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        assert w_array[0].shape == self.W.shape and w_array[1].shape == self.b.shape
+
+        self.W = w_array[0]
+        self.b = w_array[1]
+
+        w_array = w_array[2:]
+
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
 
     def forward_process(self):
         """Fully connected layer forward process."""
@@ -222,7 +253,7 @@ class Conv2d(Layer):
         self.batch_size = batch_size
         self.input_size = self.prev_layer.output_size
 
-        if not self.learning_rate:
+        if self.learning_rate is None:
             self.learning_rate = learning_rate
 
         # with 'valid' convolution
@@ -233,6 +264,24 @@ class Conv2d(Layer):
 
         for layer in self.next_layer:
             layer.set_size_forward(batch_size, learning_rate)
+
+    def save_weights(self, w_array):
+        w_array.append(self.W)
+        w_array.append(self.b)
+
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        assert w_array[0].shape == self.W.shape and w_array[1].shape == self.b.shape
+
+        self.W = w_array[0]
+        self.b = w_array[1]
+
+        w_array = w_array[2:]
+
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
 
     def forward_process(self):
         """2d convolution layer forward process."""
@@ -345,6 +394,14 @@ class Flatten(Layer):
         for layer in self.next_layer:
             layer.set_size_forward(batch_size, learning_rate)
 
+    def save_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
+
     def set_output_size(self):
         output_size = 1
         for i in self.input_size[1:]:
@@ -398,6 +455,14 @@ class Pool2d(Layer):
     def set_output_size(self):
         output = block_reduce(np.zeros((self.input_size[2], self.input_size[3])), block_size=(self.kernel_size, self.kernel_size), func=np.max)
         self.output_size = (self.batch_size, self.input_size[1], output.shape[0], output.shape[1])
+
+    def save_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
 
     def forward_process(self):
         """Flatten connected layer forward process."""
@@ -542,6 +607,14 @@ class Concat(Layer):
 
         self.output_size = tuple(output_size)
 
+    def save_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
+
     def forward_process(self):
         """Concatenate layer forward process."""
         # TODO: by axis = 0 order alternately
@@ -621,6 +694,14 @@ class Add(Layer):
         for layer in self.prev_layer:
             layer.set_next_layer(self)
 
+    def save_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.save_weights(w_array)
+
+    def load_weights(self, w_array):
+        for layer in self.next_layer:
+            layer.load_weights(w_array)
+
     def forward_process(self):
         """Concatenate layer forward process."""
         # TODO: by axis = 0 order alternately
@@ -653,9 +734,8 @@ class Add(Layer):
         for i, layer in enumerate(self.prev_layer):
             layer.backward_process(self.output_bp * self.weights_of_layers[i])
 
-# TODO: class Subtract:
 # TODO: class Dropout:
 # TODO: class Batchnorm:
-# TODO: class sparse XE:
+# TODO: init weights
 
 

@@ -1,9 +1,7 @@
 import numpy as np
-import tensorflow as tf
 import time
 import pickle
 import os
-from layer import Input, Dense, Conv2d, Pool2d, Flatten, Concat, Add
 
 np.random.seed(int(time.time()))
 
@@ -47,14 +45,29 @@ class NeuralNet(object):
     def get_weights_as_genes(self):
         return np.concatenate((np.reshape(self.W, (7840,)), self.b), axis=None)
 
-    def save_weights(self):
+    def save_weights(self, filepath):
         weights = []
-        for layer in self.model:
-            weights.append(layer.W)
-            weights.append(layer.b)
+        self.input.save_weights(weights)
 
-        with open(os.path.join('weights.txt'), 'wb') as fp:
+        with open(os.path.join(filepath), 'wb') as fp:
             pickle.dump(weights, fp)
+
+    def load_weights(self, filepath):
+        with open(os.path.join(filepath), 'rb') as fp:
+            weights = pickle.load(fp)
+
+        weights = np.array(weights)
+        self.input.load_weights(weights)
+
+    def predict(self, sample):
+        """
+        sample must have shape (1, 1, -1)
+        """
+        self.input.forward_process(sample)
+        o = self.output.output
+        prediction = self.softmax(o)
+
+        return prediction
 
     def evaluate(self):
         """Evaluate the model."""
@@ -214,51 +227,8 @@ class NeuralNet(object):
 
 
 if __name__ == "__main__":
-    num_class = 10
-    mnist = tf.keras.datasets.mnist
-    fashion = False
-    if fashion:
-        from keras.datasets import fashion_mnist
-
-        mnist = fashion_mnist
-
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0
-    x_train = np.reshape(x_train, (-1, 1, 28 * 28))
-    x_test = np.reshape(x_test, (-1, 1, 28 * 28))
-    # x_train = np.reshape(x_train, (-1, 1, 28, 28))
-    # x_test = np.reshape(x_test, (-1, 1, 28, 28))
-
-    X = np.array(np.append(x_train, x_test, axis=0))
-    Y = np.eye(num_class)[np.append(y_train, y_test)].reshape(-1, 1, 10)  # one hot vectors shape: (70000, 1, 10)
-
-    ip = Input(input_size=(1, 784))
-    # x = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
-    # x = Pool2d(kernel_size=5)(x)
-    # y = Conv2d(number_of_kernel=3, kernel_size=5, activation="relu")(ip)
-    # y = Pool2d(kernel_size=5)(y)
-    # a = Add(weights_of_layers=[1, 3])([x, y])
-    # # c = Concat(axis=1)([x, y])
-    # f = Flatten()(a)
-    # x1 = Dense(units=50, activation="sigmoid")(f)
-    # y1 = Dense(units=20, activation="sigmoid")(x1)
-    # y2 = Dense(units=20, activation="sigmoid", learning_rate=1)(x1)
-    # c1 = Concat(axis=1)([y1, y2])
-    #
-    # x2 = Dense(units=50, activation="sigmoid", learning_rate=1)(ip)
-    # z1 = Dense(units=20, activation="sigmoid", learning_rate=1)(x2)
-    # z2 = Dense(units=20, activation="sigmoid", learning_rate=1)(x2)
-    # c2 = Concat(axis=1)([z1, z2])
-
-    # c = Concat(axis=1)([c1, c2])
-    op = Dense(units=num_class, activation="sigmoid")(ip)
-
-    nn = NeuralNet(ip, op)
-    nn.build_model(loss="XE", learning_rate=0.1, batch_size=100)
-    nn.train(X[:10000], Y[:10000], epochs=25)
-    # nn.save_weights()
+    print("Please use the train.py!")
 
     # TODO: optimizers
-    # TODO: batch size in layers
-    # TODO: save weigths
+
 

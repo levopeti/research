@@ -22,7 +22,7 @@ class Input(object):
         self.output = None
         self.next_layer = []
 
-    def set_size_forward(self, batch_size, learning_rate):
+    def set_size_forward(self, batch_size, learning_rate, optimizer):
         self.batch_size = batch_size
         output_size = [batch_size]
 
@@ -32,7 +32,7 @@ class Input(object):
         self.output_size = tuple(output_size)
 
         for layer in self.next_layer:
-            layer.set_size_forward(batch_size, learning_rate)
+            layer.set_size_forward(batch_size, learning_rate, optimizer)
 
     def set_next_layer(self, layer):
         self.next_layer.append(layer)
@@ -73,15 +73,18 @@ class Layer(ABC):
         self.b = None
         self.z = None
 
+        self.velocity_W = None
+        self.velocity_b = None
+
         self.prev_layer = prev_layer
         self.next_layer = []
 
         self.prev_layer_set_next_layer()
 
-        # convention of input shape
+        self.optimizer = None
 
     @abstractmethod
-    def set_size_forward(self, batch_size, learning_rate):
+    def set_size_forward(self, batch_size, learning_rate, optimizer):
         pass
 
     @abstractmethod
@@ -149,6 +152,10 @@ class Layer(ABC):
     def d_relu(x):
         return np.where(x > 0, 1, 0)
 
+    def update_weights(self, delta_W, delta_b):
+        """Update weights and velocity of the weights."""
+        self.W, self.b, self.velocity_W, self.velocity_b = self.optimizer(self.W, self.velocity_W, delta_W, self.b, self.velocity_b, delta_b, self.learning_rate)
+
 
 class Dense(Layer):
     def __new__(cls, units, activation="sigmoid", learning_rate=None):
@@ -162,8 +169,9 @@ class Dense(Layer):
         super().__init__(activation=activation, learning_rate=learning_rate, prev_layer=prev_layer)
         self.units = units
 
-    def set_size_forward(self, batch_size, learning_rate):
+    def set_size_forward(self, batch_size, learning_rate, optimizer):
         self.batch_size = batch_size
+        self.optimizer = optimizer
         self.input_size = self.prev_layer.output_size
         self.output_size = (self.batch_size, 1, self.units)
 
@@ -172,13 +180,17 @@ class Dense(Layer):
 
         self.W = (np.random.rand(self.input_size[2], self.output_size[2]) * 1) - 0.5
         self.b = (np.random.rand(self.output_size[2]) * 1) - 0.5
+
+        self.velocity_W = np.zeros(self.W.shape)
+        self.velocity_b = np.zeros(self.b.shape)
+
         # self.b = np.zeros(self.output_size)
 
         log = "Dense layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
         print(log)
 
         for layer in self.next_layer:
-            layer.set_size_forward(batch_size, learning_rate)
+            layer.set_size_forward(batch_size, learning_rate, optimizer)
 
     def save_weights(self, w_array):
         w_array.append(self.W)
@@ -212,7 +224,6 @@ class Dense(Layer):
     def backward_process(self, input_error):
         """Fully connected layer backward process"""
         # print("dense backward")
-        # TODO: More next layer
         d_act_z = self.d_act(self.z)
 
         delta_b = np.multiply(input_error, d_act_z)
@@ -224,8 +235,11 @@ class Dense(Layer):
         delta_W = np.tensordot(x, delta_b, axes=([0, 2], [0, 1]))
         delta_b = np.sum(delta_b, axis=0).reshape(-1)
 
-        self.W = np.subtract(self.W, delta_W * (self.learning_rate / self.batch_size))
-        self.b = np.subtract(self.b, delta_b * (self.learning_rate / self.batch_size))
+        # normalization
+        delta_W = delta_W / self.batch_size
+        delta_b = delta_b / self.batch_size
+
+        self.update_weights(delta_W, delta_b)
 
         assert self.output_bp.shape == self.input_size
 
@@ -421,7 +435,6 @@ class Flatten(Layer):
     def backward_process(self, input_error):
         """Flatten connected layer backward process"""
         # print("flatten backward")
-        # TODO: More next layer
         self.output_bp = input_error.reshape(self.prev_layer.output_size)
         assert self.output_bp.shape == self.input_size
 
@@ -498,7 +511,6 @@ class Pool2d(Layer):
     def backward_process(self, input_error):
         """Flatten connected layer backward process"""
         # print("pool2d backward")
-        # TODO: More next layer
         output = []
 
         if POOL:

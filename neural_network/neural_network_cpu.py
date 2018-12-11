@@ -3,6 +3,8 @@ import time
 import pickle
 import os
 
+import optimizers
+
 np.random.seed(int(time.time()))
 
 
@@ -11,13 +13,19 @@ class NeuralNet(object):
         self.learning_rate = 0.1
         self.loss = None
         self.error = None
+        self.optimizer = None
 
         self.X = None
         self.Y = None
         self.Y_am = None        # Y argmax
 
+        self.test_x = None
+        self.test_y = None
+        self.test_y_am = None   # test_y atgmax
+
         self.batch_size = None
         self.num_batches = None
+        self.test_num_batches = None
         self.epochs = None
 
         self.input = input
@@ -28,7 +36,7 @@ class NeuralNet(object):
     def __del__(self):
         pass
 
-    def build_model(self, loss="MSE", learning_rate=0.1, batch_size=100):
+    def build_model(self, loss="MSE", optimizer=None, learning_rate=0.1, batch_size=100):
         print("Build the model...\n")
         self.batch_size = batch_size
         self.learning_rate = learning_rate
@@ -36,7 +44,9 @@ class NeuralNet(object):
         self.learning_rate = learning_rate
         self.loss = self.loss_func(loss)
         self.error = self.error_func(loss)
-        self.input.set_size_forward(self.batch_size, self.learning_rate)
+        self.optimizer = optimizer.run
+
+        self.input.set_size_forward(self.batch_size, self.learning_rate, self.optimizer)
 
     def set_weights(self, individual):
         self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
@@ -69,20 +79,35 @@ class NeuralNet(object):
 
         return prediction
 
-    def evaluate(self):
+    def evaluate(self, test=False):
         """Evaluate the model."""
         global_loss = 0
         predicted_values = []
 
-        for b in range(self.num_batches):
+        if test:
+            num_batches = self.test_num_batches
+        else:
+            num_batches = self.num_batches
+
+        for b in range(num_batches):
             # print(b)
 
             # forward process
             start, end = b * self.batch_size, (b + 1) * self.batch_size
-            self.forward(start, end)
+            self.forward(start, end, test)
             o = self.output.output
 
-            loss, predicted_value = self.loss(o, self.Y[start:end])
+            if not test:
+                if end > self.Y.shape[0]:
+                    end = self.Y.shape[0]
+
+                loss, predicted_value = self.loss(o, self.Y[start:end])
+            else:
+                if end > self.test_y.shape[0]:
+                    end = self.test_y.shape[0]
+
+                loss, predicted_value = self.loss(o, self.test_y[start:end])
+
             # print(loss)
             # print(predicted_value.shape)
             # exit()
@@ -92,7 +117,7 @@ class NeuralNet(object):
 
         predicted_values = np.array(predicted_values).reshape(-1,)
 
-        return global_loss, self.accurate_func(np.array(predicted_values))
+        return global_loss, self.accurate_func(np.array(predicted_values), test)
 
     def train_step(self):
         """Train one epoch on the network with backpropagation."""
@@ -115,20 +140,34 @@ class NeuralNet(object):
             # print("Time of backward: {}s".format(time.time() - start_time))
             # input()
 
-    def forward(self, start, end):
-        self.input.forward_process(self.X[start: end])
+    def forward(self, start, end, test=False):
+        if not test:
+            if end > self.X.shape[0]:
+                end = self.X.shape[0]
+
+            self.input.forward_process(self.X[start: end])
+        else:
+            if end > self.test_x.shape[0]:
+                end = self.test_x.shape[0]
+
+            self.input.forward_process(self.test_x[start: end])
 
     def backward(self, error):
         # for the first layer the output_bp = error
         self.output.backward_process(error)
 
-    def train(self, X, Y, epochs):
-        self.X = X
-        self.Y = Y
-        self.Y_am = np.argmax(Y.reshape(-1, 10), axis=1)
+    def train(self, train_x, train_y, test_x=None, test_y=None, epochs=100):
+        self.X = train_x
+        self.Y = train_y
+        self.Y_am = np.argmax(train_y.reshape(-1, 10), axis=1)
+
+        self.test_x = test_x
+        self.test_y = test_y
+        self.test_y_am = np.argmax(test_y.reshape(-1, 10), axis=1)
 
         self.epochs = epochs
         self.num_batches = self.X.shape[0] // self.batch_size
+        self.test_num_batches = self.test_x.shape[0] // self.batch_size
 
         print("Start training the model...\n")
 
@@ -137,16 +176,34 @@ class NeuralNet(object):
             self.train_step()
             loss_value, accurate = self.evaluate()
 
-            print("EPOCH", i + 1, "\tAccurate: {0:.2f}%\t".format(accurate * 100), "Loss: {0:.4f}\t".format(loss_value), "Time: {0:.2f}s\n".format(time.time() - start))
-            if i == 30:
-                self.learning_rate *= 0.5
+            if self.test_x is not None:
+                test_loss_value, test_accurate = self.evaluate(test=True)
+            else:
+                test_loss_value, test_accurate = None, None
 
-    def accurate_func(self, pred):
+            self.print_stat(i, loss_value, accurate, test_loss_value, test_accurate, start)
+
+            # if i == self.lr_decay:
+            #     self.learning_rate *= 0.5
+
+    @staticmethod
+    def print_stat(i, loss_value, accurate, test_loss_value, test_accurate, start):
+        if test_loss_value:
+            print("EPOCH", i + 1, " Train acc.: {0:.2f}% ".format(accurate * 100), "Train loss: {0:.4f}  ".format(loss_value), "Test acc.: {0:.2f}% ".format(test_accurate * 100), "Test loss: {0:.4f}  ".format(test_loss_value), "Time: {0:.2f}s\n".format(time.time() - start))
+        else:
+            print("EPOCH", i + 1, "\tTrain accurate: {0:.2f}%\t".format(accurate * 100), "Train loss: {0:.4f}\t".format(loss_value), "Time: {0:.2f}s\n".format(time.time() - start))
+
+    def accurate_func(self, pred, test=False):
         goal = 0
 
-        for i in range(pred.shape[0]):
-            if pred[i] == self.Y_am[i]:         # shape: (70000, 1, 10) --> shape: (70000, 10)
-                goal += 1
+        if not test:
+            for i in range(pred.shape[0]):
+                if pred[i] == self.Y_am[i]:             # shape: (-1, 1, num_class) --> shape: (-1, num_class)
+                    goal += 1
+        else:
+            for i in range(pred.shape[0]):
+                if pred[i] == self.test_y_am[i]:
+                    goal += 1
 
         return goal / pred.shape[0]
 
@@ -229,6 +286,5 @@ class NeuralNet(object):
 if __name__ == "__main__":
     print("Please use the train.py!")
 
-    # TODO: optimizers
 
 

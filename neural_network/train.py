@@ -1,7 +1,9 @@
 import tensorflow as tf
 from layer import Input, Dense, Conv2d, Pool2d, Flatten, Concat, Add
 import numpy as np
-from neural_network import NeuralNet
+from neural_network_cpu import NeuralNet
+
+import optimizers
 
 
 def train():
@@ -47,8 +49,11 @@ def train():
     op = Dense(units=num_class, activation="sigmoid")(ip)
 
     nn = NeuralNet(ip, op)
-    nn.build_model(loss="MSE", learning_rate=1, batch_size=100)
-    nn.train(X[:60000], Y[:60000], epochs=5)
+    sgd = optimizers.SGD()
+    momentum = optimizers.Momentum(gamma=0.9)
+
+    nn.build_model(loss="XE", optimizer=momentum, learning_rate=1, batch_size=100)
+    nn.train(train_x=X[:60000], train_y=Y[:60000], test_x=X[60000:], test_y=Y[60000:], epochs=10)
     # nn.save_weights(filepath='weights.txt')
 
 

@@ -72,6 +72,7 @@ class Layer(ABC):
         self.W = None
         self.b = None
         self.z = None
+        self.z_nesterov = None
 
         self.velocity_W = None
         self.velocity_b = None
@@ -154,7 +155,7 @@ class Layer(ABC):
 
     def update_weights(self, delta_W, delta_b):
         """Update weights and velocity of the weights."""
-        self.W, self.b, self.velocity_W, self.velocity_b = self.optimizer(self.W, self.velocity_W, delta_W, self.b, self.velocity_b, delta_b, self.learning_rate)
+        self.W, self.b, self.velocity_W, self.velocity_b = self.optimizer.run(self.W, self.velocity_W, delta_W, self.b, self.velocity_b, delta_b, self.learning_rate)
 
 
 class Dense(Layer):
@@ -214,6 +215,13 @@ class Dense(Layer):
         """Fully connected layer forward process."""
         x = self.prev_layer.output
         self.z = np.add(np.dot(x, self.W), self.b)
+
+        if self.optimizer.name == "SGD":
+            if self.optimizer.nesterov:
+                nesterov_W = np.subtract(self.W, self.optimizer.gamma * self.velocity_W)
+                nesterov_b = np.subtract(self.b, self.optimizer.gamma * self.velocity_b)
+                self.z_nesterov = np.add(np.dot(x, nesterov_W), nesterov_b)
+
         self.output = self.act(self.z)
 
         assert self.output.shape == self.output_size
@@ -224,11 +232,17 @@ class Dense(Layer):
     def backward_process(self, input_error):
         """Fully connected layer backward process"""
         # print("dense backward")
-        d_act_z = self.d_act(self.z)
+
+        if self.z_nesterov is not None:
+            d_act_z = self.d_act(self.z_nesterov)
+        else:
+            d_act_z = self.d_act(self.z)
 
         delta_b = np.multiply(input_error, d_act_z)
         x = self.prev_layer.output
-        x = np.transpose(x, axes=(0, 2, 1))  # transpose the last two axis
+
+        # transpose the last two axis
+        x = np.transpose(x, axes=(0, 2, 1))
 
         self.output_bp = np.dot(delta_b, np.transpose(self.W))
 

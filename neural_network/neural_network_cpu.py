@@ -44,7 +44,7 @@ class NeuralNet(object):
         self.learning_rate = learning_rate
         self.loss = self.loss_func(loss)
         self.error = self.error_func(loss)
-        self.optimizer = optimizer.run
+        self.optimizer = optimizer
 
         self.input.set_size_forward(self.batch_size, self.learning_rate, self.optimizer)
 
@@ -95,6 +95,7 @@ class NeuralNet(object):
             # forward process
             start, end = b * self.batch_size, (b + 1) * self.batch_size
             self.forward(start, end, test)
+
             o = self.output.output
 
             if not test:
@@ -117,7 +118,7 @@ class NeuralNet(object):
 
         predicted_values = np.array(predicted_values).reshape(-1,)
 
-        return global_loss, self.accurate_func(np.array(predicted_values), test)
+        return global_loss / num_batches, self.accurate_func(np.array(predicted_values), test)
 
     def train_step(self):
         """Train one epoch on the network with backpropagation."""
@@ -129,7 +130,11 @@ class NeuralNet(object):
             start_time = time.time()
             start, end = b * self.batch_size, (b + 1) * self.batch_size
             self.forward(start, end)
-            o = self.output.output
+
+            if self.output.z_nesterov is not None:
+                o = self.output.act(self.output.z_nesterov)
+            else:
+                o = self.output.output
 
             # print("Time of forward: {}s".format(time.time() - start_time))
             error = self.error(o, self.Y[start:end])
@@ -261,8 +266,10 @@ class NeuralNet(object):
         cost = -(1.0/m) * np.sum(np.dot(np.log(A), Y.T) + np.dot(np.log(1-A), (1-Y).T))
         """
         # y = y.argmax(axis=1)
+
+        # batch_size
         m = y.shape[0]
-        #
+
         # log_likelihood = -np.log(p[range(m), y])
         # loss = np.sum(log_likelihood) / m
 

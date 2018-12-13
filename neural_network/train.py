@@ -34,7 +34,7 @@ def train():
     # a = Add(weights_of_layers=[1, 3])([x, y])
     # c = Concat(axis=1)([x, y])
     # f = Flatten()(a)
-    # x1 = Dense(units=256, activation="sigmoid")(ip)
+    x1 = Dense(units=256, activation="sigmoid")(ip)
 
     # y1 = Dense(units=20, activation="sigmoid")(x1)
     # y2 = Dense(units=20, activation="sigmoid", learning_rate=1)(x1)
@@ -46,13 +46,14 @@ def train():
     # c2 = Concat(axis=1)([z1, z2])
 
     # c = Concat(axis=1)([c1, c2])
-    op = Dense(units=num_class, activation="sigmoid")(ip)
+    op = Dense(units=num_class, activation="sigmoid")(x1)
 
     nn = NeuralNet(ip, op)
-    sgd = optimizers.SGD()
-    momentum = optimizers.Momentum(gamma=0.9)
+    sgd = optimizers.SGD(gamma=0, nesterov=False)
+    adagrad = optimizers.Adagrad()
+    rmsprop = optimizers.RMSprop()
 
-    nn.build_model(loss="XE", optimizer=momentum, learning_rate=1, batch_size=100)
+    nn.build_model(loss="XE", optimizer=rmsprop, learning_rate=0.1, batch_size=100)
     nn.train(train_x=X[:60000], train_y=Y[:60000], test_x=X[60000:], test_y=Y[60000:], epochs=10)
     # nn.save_weights(filepath='weights.txt')
 

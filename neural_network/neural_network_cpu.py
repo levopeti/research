@@ -213,9 +213,10 @@ class NeuralNet(object):
 
         for i in range(self.epochs):
             start = time.time()
-            print('train')
             self.train_step()
-            print('eval')
+            train_time = time.time() - start
+
+            start = time.time()
             loss_value, accurate = self.evaluate()
 
             if self.test_x is not None:
@@ -223,17 +224,18 @@ class NeuralNet(object):
             else:
                 test_loss_value, test_accurate = None, None
 
-            self.print_stat(i, loss_value, accurate, test_loss_value, test_accurate, start)
+            eval_time = time.time() - start
 
-            # if i == self.lr_decay:
-            #     self.learning_rate *= 0.5
+            self.print_stat(i, loss_value, accurate, test_loss_value, test_accurate, train_time, eval_time)
 
     @staticmethod
-    def print_stat(i, loss_value, accurate, test_loss_value, test_accurate, start):
+    def print_stat(i, loss_value, accurate, test_loss_value, test_accurate, train_time, eval_time):
         if test_loss_value:
-            print("EPOCH", i + 1, " Train acc.: {0:.2f}% ".format(accurate * 100), "Train loss: {0:.4f}  ".format(loss_value), "Test acc.: {0:.2f}% ".format(test_accurate * 100), "Test loss: {0:.4f}  ".format(test_loss_value), "Time: {0:.2f}s\n".format(time.time() - start))
+            # print("EPOCH", i + 1, " Train acc.: {0:.2f}% ".format(accurate * 100), "Train loss: {0:.4f}  ".format(loss_value), "Test acc.: {0:.2f}% ".format(test_accurate * 100), "Test loss: {0:.4f}  ".format(test_loss_value), "Train/eval time: {0:.2f}s/{1:.2f}s\n".format(train_time, eval_time))
+            print("EPOCH", i + 1, " Train/eval acc.: {0:.2f}/{1:.2f}% ".format(accurate * 100, test_accurate * 100), "Train/eval loss: {0:.4f}/{1:.4f}  ".format(loss_value, test_loss_value), "Train/eval time: {0:.2f}s/{1:.2f}s\n".format(train_time, eval_time))
+
         else:
-            print("EPOCH", i + 1, "\tTrain accurate: {0:.2f}%\t".format(accurate * 100), "Train loss: {0:.4f}\t".format(loss_value), "Time: {0:.2f}s\n".format(time.time() - start))
+            print("EPOCH", i + 1, "\tTrain accurate: {0:.2f}%\t".format(accurate * 100), "Train loss: {0:.4f}\t".format(loss_value), "Train/eval time: {0:.2f}s/{1:.2f}s\n".format(train_time, eval_time))
 
     def accurate_func(self, pred, test=False):
         goal = 0
@@ -328,7 +330,7 @@ class NeuralNet(object):
 
 
 if __name__ == "__main__":
-    print("Please use the train.py!")
+    print("Please use the train.py script!")
 
 
 

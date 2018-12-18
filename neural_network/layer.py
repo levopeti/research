@@ -141,7 +141,10 @@ class Layer(ABC):
 
     @staticmethod
     def log(x):
-        return 1 / (1 + np.exp(-1 * x))
+        """
+        Numerically stable sigmoid function.
+        """
+        return np.where(x > -1e2, 1 / (1 + np.exp(-x)), 1 / (1 + np.exp(1e2)))
 
     def d_log(self, x):
         return self.log(x) * (1 - self.log(x))

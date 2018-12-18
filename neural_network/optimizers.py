@@ -92,7 +92,7 @@ class Adadelta(object):
     def run(self, W, cache_W, delta_W, b, cache_b, delta_b, learning_rate):
         """Here cache is second order moment of gradient (g) and second order moment of velocity (x)."""
         if learning_rate is None:
-            learning_rate = 0.1
+            learning_rate = 1
 
         if cache_W is None:
             # [g, x, velocity]

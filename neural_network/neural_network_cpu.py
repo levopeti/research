@@ -2,8 +2,8 @@ import numpy as np
 import time
 import pickle
 import os
-
-import optimizers
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count
 
 np.random.seed(int(time.time()))
 
@@ -32,6 +32,8 @@ class NeuralNet(object):
         self.output = output
 
         self.model = None
+
+        self.POOL = True
 
     def __del__(self):
         pass
@@ -88,32 +90,66 @@ class NeuralNet(object):
         else:
             num_batches = self.num_batches
 
-        for b in range(num_batches):
-            # print(b)
+        if self.POOL:
+            def eval_on_batch(b):
+                # print(b)
 
-            # forward process
-            start, end = b * self.batch_size, (b + 1) * self.batch_size
-            self.forward(start, end, test)
+                # forward process
+                start, end = b * self.batch_size, (b + 1) * self.batch_size
+                self.forward(start, end, test)
 
-            o = self.output.output
+                o = self.output.output
 
-            if not test:
-                if end > self.Y.shape[0]:
-                    end = self.Y.shape[0]
+                if not test:
+                    if end > self.Y.shape[0]:
+                        end = self.Y.shape[0]
 
-                loss, predicted_value = self.loss(o, self.Y[start:end])
-            else:
-                if end > self.test_y.shape[0]:
-                    end = self.test_y.shape[0]
+                    loss, predicted_value = self.loss(o, self.Y[start:end])
+                else:
+                    if end > self.test_y.shape[0]:
+                        end = self.test_y.shape[0]
 
-                loss, predicted_value = self.loss(o, self.test_y[start:end])
+                    loss, predicted_value = self.loss(o, self.test_y[start:end])
 
-            # print(loss)
-            # print(predicted_value.shape)
-            # exit()
-            predicted_values.append(predicted_value)
+                # print(loss)
+                # print(predicted_value.shape)
+                # exit()
 
-            global_loss += loss
+                return loss, predicted_value
+
+            with ThreadPoolExecutor(max_workers=cpu_count()) as p:
+                results = p.map(eval_on_batch, range(num_batches))
+
+            for loss, predicted_value in results:
+                predicted_values.append(predicted_value)
+                global_loss += loss
+        else:
+            for b in range(num_batches):
+                # print(b)
+
+                # forward process
+                start, end = b * self.batch_size, (b + 1) * self.batch_size
+                self.forward(start, end, test)
+
+                o = self.output.output
+
+                if not test:
+                    if end > self.Y.shape[0]:
+                        end = self.Y.shape[0]
+
+                    loss, predicted_value = self.loss(o, self.Y[start:end])
+                else:
+                    if end > self.test_y.shape[0]:
+                        end = self.test_y.shape[0]
+
+                    loss, predicted_value = self.loss(o, self.test_y[start:end])
+
+                # print(loss)
+                # print(predicted_value.shape)
+                # exit()
+                predicted_values.append(predicted_value)
+
+                global_loss += loss
 
         predicted_values = np.array(predicted_values).reshape(-1,)
 

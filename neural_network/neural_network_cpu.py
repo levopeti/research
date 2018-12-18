@@ -36,12 +36,11 @@ class NeuralNet(object):
     def __del__(self):
         pass
 
-    def build_model(self, loss="MSE", optimizer=None, learning_rate=0.1, batch_size=100):
+    def build_model(self, loss="MSE", optimizer=None, learning_rate=None, batch_size=100):
         print("Build the model...\n")
         self.batch_size = batch_size
         self.learning_rate = learning_rate
 
-        self.learning_rate = learning_rate
         self.loss = self.loss_func(loss)
         self.error = self.error_func(loss)
         self.optimizer = optimizer
@@ -178,7 +177,9 @@ class NeuralNet(object):
 
         for i in range(self.epochs):
             start = time.time()
+            print('train')
             self.train_step()
+            print('eval')
             loss_value, accurate = self.evaluate()
 
             if self.test_x is not None:

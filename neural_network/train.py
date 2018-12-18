@@ -49,11 +49,12 @@ def train():
     op = Dense(units=num_class, activation="sigmoid")(x1)
 
     nn = NeuralNet(ip, op)
-    sgd = optimizers.SGD(gamma=0, nesterov=False)
+    sgd = optimizers.SGD(gamma=0.9, nesterov=False)
     adagrad = optimizers.Adagrad()
-    rmsprop = optimizers.RMSprop()
+    adadelta = optimizers.Adadelta()
+    rmsprop = optimizers.RMSProp(first_order_momentum=False, gamma=0)
 
-    nn.build_model(loss="XE", optimizer=rmsprop, learning_rate=0.1, batch_size=100)
+    nn.build_model(loss="XE", optimizer=rmsprop, learning_rate=None, batch_size=100)
     nn.train(train_x=X[:60000], train_y=Y[:60000], test_x=X[60000:], test_y=Y[60000:], epochs=10)
     # nn.save_weights(filepath='weights.txt')
 

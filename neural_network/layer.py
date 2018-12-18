@@ -74,8 +74,9 @@ class Layer(ABC):
         self.z = None
         self.z_nesterov = None
 
-        self.velocity_W = None
-        self.velocity_b = None
+        # cache for optimizer
+        self.cache_W = None
+        self.cache_b = None
 
         self.prev_layer = prev_layer
         self.next_layer = []
@@ -155,7 +156,7 @@ class Layer(ABC):
 
     def update_weights(self, delta_W, delta_b):
         """Update weights and velocity of the weights."""
-        self.W, self.b, self.velocity_W, self.velocity_b = self.optimizer.run(self.W, self.velocity_W, delta_W, self.b, self.velocity_b, delta_b, self.learning_rate)
+        self.W, self.b, self.cache_W, self.cache_b = self.optimizer.run(self.W, self.cache_W, delta_W, self.b, self.cache_b, delta_b, self.learning_rate)
 
 
 class Dense(Layer):
@@ -182,10 +183,10 @@ class Dense(Layer):
         self.W = (np.random.rand(self.input_size[2], self.output_size[2]) * 1) - 0.5
         self.b = (np.random.rand(self.output_size[2]) * 1) - 0.5
 
-        self.velocity_W = np.zeros(self.W.shape)
-        self.velocity_b = np.zeros(self.b.shape)
-
         # self.b = np.zeros(self.output_size)
+
+        # init cache in case nasterov
+        self.cache_W, self.cache_b = self.optimizer.init(self.W.shape, self.b.shape)
 
         log = "Dense layer with {} parameters.\nInput size: {}\nOutput size: {}\n".format(self.W.size + self.b.size, self.input_size, self.output_size)
         print(log)
@@ -218,8 +219,8 @@ class Dense(Layer):
 
         if self.optimizer.name == "SGD":
             if self.optimizer.nesterov:
-                nesterov_W = np.subtract(self.W, self.optimizer.gamma * self.velocity_W)
-                nesterov_b = np.subtract(self.b, self.optimizer.gamma * self.velocity_b)
+                nesterov_W = np.subtract(self.W, self.optimizer.gamma * self.cache_W)
+                nesterov_b = np.subtract(self.b, self.optimizer.gamma * self.cache_b)
                 self.z_nesterov = np.add(np.dot(x, nesterov_W), nesterov_b)
 
         self.output = self.act(self.z)

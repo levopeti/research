@@ -51,7 +51,8 @@ class Adagrad(object):
         self.name = "Adagrad"
         self.eps = eps
 
-    def init(self, W_shape, b_shape):
+    @staticmethod
+    def init(*args):
         return None, None
 
     def run(self, W, cache_W, delta_W, b, cache_b, delta_b, learning_rate):
@@ -86,7 +87,8 @@ class Adadelta(object):
         self.eps = eps
         self.autocorr = autocorr
 
-    def init(self, W_shape, b_shape):
+    @staticmethod
+    def init(*args):
         return None, None
 
     def run(self, W, cache_W, delta_W, b, cache_b, delta_b, learning_rate):
@@ -148,7 +150,8 @@ class RMSProp(object):
         # gamma for momentum
         self.gamma = gamma
 
-    def init(self, W_shape, b_shape):
+    @staticmethod
+    def init(*args):
         return None, None
 
     def run(self, W, cache_W, delta_W, b, cache_b, delta_b, learning_rate):

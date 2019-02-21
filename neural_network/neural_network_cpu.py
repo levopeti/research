@@ -50,8 +50,9 @@ class NeuralNet(object):
         self.input.set_size_forward(self.batch_size, self.learning_rate, self.optimizer)
 
     def set_weights(self, individual):
-        self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
-        self.b = np.array(individual[-10:])  # shape (10,)
+        # self.W = np.reshape(np.array(individual[:7840]), (784, 10))  # shape (784, 10)
+        # self.b = np.array(individual[-10:])  # shape (10,)
+        pass
 
     def get_weights_as_genes(self):
         return np.concatenate((np.reshape(self.W, (7840,)), self.b), axis=None)
@@ -59,6 +60,7 @@ class NeuralNet(object):
     def save_weights(self, filepath):
         weights = []
         self.input.save_weights(weights)
+        print("Save weights to ", filepath)
 
         with open(os.path.join(filepath), 'wb') as fp:
             pickle.dump(weights, fp)
@@ -242,7 +244,7 @@ class NeuralNet(object):
 
         if not test:
             for i in range(pred.shape[0]):
-                if pred[i] == self.Y_am[i]:             # shape: (-1, 1, num_class) --> shape: (-1, num_class)
+                if pred[i] == self.Y_am[i]:        # shape: (-1, 1, num_class) --> shape: (-1, num_class)
                     goal += 1
         else:
             for i in range(pred.shape[0]):

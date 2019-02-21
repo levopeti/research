@@ -11,7 +11,8 @@ import threading
 
 
 class ParticleSwarm(object):
-    """Particle Swarm class.
+    """
+    Particle Swarm class.
     This is the main class that controls the functionality of the Particle Swarm.
     """
 
@@ -43,7 +44,8 @@ class ParticleSwarm(object):
             self.thread = False
 
     def create_first_generation(self):
-        """Create the first population, calculate the population's fitness and
+        """
+        Create the first population, calculate the population's fitness and
         rank the population by fitness according to the order specified.
         """
         self.population = Swarm(self.population_size, self.chromosome_size, self.fitness_function)
@@ -138,9 +140,7 @@ class ParticleSwarm(object):
                 print('Process time: {0:.2f}s\n'.format(end - start))
 
     def best_individual(self):
-        """Return the individual with the best fitness in the current
-        generation.
-        """
+        """Return the individual with the best fitness in the current generation."""
         best = self.population.get_the_best()
         return best.fitness, best.genes
 
@@ -149,8 +149,7 @@ class ParticleSwarm(object):
         return ((member.fitness, member.genes) for member in self.population.get_all())
 
     def local_search(self):
-        """Gradient search based on memetic evolution.
-        """
+        """Gradient search based on memetic evolution."""
         start = time.time()
 
         if self.pool: #self.pool:
@@ -208,8 +207,7 @@ class ParticleSwarm(object):
         print('Calculate pop fitness time: {0:.2f}s'.format(end - start))
 
     def iterate(self):
-        """One iteration on the swarm.
-        """
+        """One iteration on the swarm."""
         start = time.time()
 
         if 0:  # self.pool:

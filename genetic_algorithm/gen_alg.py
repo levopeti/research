@@ -5,49 +5,36 @@ import numpy as np
 from population import Population
 from chromosome import Chromosome
 from selections import crossover
+from base_alg_class import BaseAlgorithmClass
 
 from pathos.multiprocessing import Pool
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
-import threading
 
 
-class GeneticAlgorithm(object):
-    """Genetic Algorithm class.
-    This is the main class that controls the functionality of the Genetic
-    Algorithm.
+class GeneticAlgorithm(BaseAlgorithmClass):
+    """
+    Genetic Algorithm class.
+    This is the main class that controls the functionality of the Genetic Algorithm.
     """
 
     def __init__(self,
                  population_size=50,
                  chromosome_size=10,
-                 generations=100,
+                 max_iteration=None,
+                 max_fitness_eval=None,
                  patience=None,
                  lamarck=False,
                  pool_size=cpu_count(),
-                 pool=False,
-                 thread=False):
-
-        self.patience = patience
-        self.population_size = population_size
-        self.chromosome_size = chromosome_size
-        self.generations = generations
-        self.lamarck = lamarck
-        self.pool_size = pool_size
-        self.pool = pool
-        self.thread = thread
-        self.first = 1
-
-        self.population = None
-
-        self.fitness_function = None
-        self.selection_function = None
-        self.mutation_function = None
-        self.memetic_function = None
-        self.crossover_function = crossover
-
-        if self.pool:
-            self.thread = False
+                 pool=False):
+        super().__init__(population_size=population_size,
+                         chromosome_size=chromosome_size,
+                         max_iteration=max_iteration,
+                         max_fitness_eval=max_fitness_eval,
+                         patience=patience,
+                         lamarck=lamarck,
+                         pool_size=pool_size,
+                         pool=pool)
 
     def create_new_population(self):
         """Create a new population using the genetic operators (selection,
@@ -184,7 +171,7 @@ class GeneticAlgorithm(object):
         """
         start = time.time()
 
-        if self.pool: #self.pool:
+        if self.pool:  # self.pool:
             print('Use process pool for local search with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             members = p.map(self.memetic_function, self.population.get_all())
@@ -214,7 +201,7 @@ class GeneticAlgorithm(object):
         """
         start = time.time()
 
-        if 0: #self.pool:
+        if 0:  # self.pool:
             print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             fitness_values = p.map(self.fitness_function, self.population.get_all())
@@ -223,7 +210,7 @@ class GeneticAlgorithm(object):
                 self.population.set_fitness(value, i)
 
             p.terminate()
-        elif 0: #self.thread:
+        elif 0:  # self.thread:
             print('Use thread pool for calculate fitness with pool size {}.'.format(self.pool_size))
             with ThreadPoolExecutor(max_workers=self.pool_size) as p:
                 fitness_values = p.map(self.fitness_function, self.population.get_all())

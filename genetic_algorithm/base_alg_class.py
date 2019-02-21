@@ -124,3 +124,16 @@ class BaseAlgorithmClass(ABC):
         best_genes = self.population.get_best_genes()
         best_fitness = self.population.get_best_fitness()
         return best_genes, best_fitness
+
+    def rank_population(self):
+        """Sort the population by fitness ascending order."""
+        self.population.rank_population()
+
+    def cut_pop_size(self):
+        """Resize the current population to pop size."""
+        self.population.cut_pop_size()
+
+    def add_individual_to_pop(self, individual):
+        """Add new individual to the current population."""
+        self.population.add_individual_to_pop(individual)
+

@@ -2,54 +2,35 @@ import yaml
 import time
 import fitness_functions
 import memetics
-import selections
+from selections import random_selection, tournament_selection, better_half_selection
 import mutations
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
 from gen_alg import GeneticAlgorithm
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
-#os.environ['CUDA_VISIBLE_DEVICES'] = '3'
-
-# gpu_options = tf.GPUOptions(allow_growth=True, visible_device_list=str(1))
-# sess1 = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, gpu_options=gpu_options))
-#
-# gpu_options = tf.GPUOptions(allow_growth=True, visible_device_list=str(3))
-# sess2 = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, gpu_options=gpu_options))
-#
-# time.sleep(10)
-# sess1.close()
-# sess2.close()
-# exit()
+# TODO: Callbacks, RemoteControl
 
 config = yaml.load(open("config.yml", 'r'))
 mutation_probability = config["mutation_probability"]
+mutation_random = config["mutation_random"]
 
-ga = GeneticAlgorithm(population_size=config["population_size"],
-                      generations=config["generations"],
-                      chromosome_size=config["chromosome_size"],
-                      patience=config["patience"],
-                      lamarck=config["lamarck"],
-                      pool_size=config["pool_size"],
-                      pool=config["pool"],
-                      thread=config["thread"])
+ga = GeneticAlgorithm(**config)
 
-ff = fitness_functions.FitnessFunction(5)
+ff = fitness_functions.FitnessFunction(1)
+mut = mutations.mutation(2, mutation_probability, mutation_random)
 
-ga.fitness_function = ff.calculate
-ga.selection_function = selections.random_selection
-ga.mutation_function = mutations.mutation(2)        # basic mutation - 1    bacterial mutation - 2
-ga.first = 0
-# ga.memetic_function = memetics.lamarck_one
-ga.memetic_function = ff.train_steps(number_of_steps=2)
+ga.compile(fitness_function=ff,
+           selection_function=tournament_selection,
+           mutation_function=mut)
+
 
 print('Run genetic algorithm\n')
 
-print('Population size: {}\nChromosome size: {}\nLamarck: {}\nPool: {}\nThread: {}\n'.
-      format(config["population_size"], config["chromosome_size"], config["lamarck"], ga.pool, ga.thread))
+for key, item in config.items():
+    print("{0}: {1}".format(key, item))
+print('\n')
 
 ga.run()
 #ff.model.base_line(500)

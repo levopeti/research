@@ -1,6 +1,8 @@
 from chromosome import Chromosome, Particle
 from operator import attrgetter
 import copy
+import random
+import numpy as np
 
 from abc import ABC, abstractmethod
 
@@ -8,7 +10,7 @@ from abc import ABC, abstractmethod
 class PopulationBase(ABC):
     """Base class of population for metaheuristic algorithms."""
 
-    __slots__ = "current_generation", "pop_size", "chromosome_size", "counter",\
+    __slots__ = "__current_generation", "pop_size", "chromosome_size", "counter",\
                 "fitness_function", "global_best_individual"
 
     def __init__(self, pop_size, chromosome_size, fitness_function):
@@ -27,8 +29,8 @@ class PopulationBase(ABC):
         return repr((self.pop_size, self.__current_population))
 
     def __next__(self):
+        self.counter += 1
         if self.counter < self.pop_size:
-            self.counter += 1
             return self.__current_population[self.counter]
         else:
             self.counter = -1
@@ -39,6 +41,9 @@ class PopulationBase(ABC):
 
     def __getitem__(self, index):
         return self.__current_population[index]
+
+    def __len__(self):
+        return self.pop_size
 
     # def get_all(self):
     #     return self.__current_population
@@ -59,8 +64,13 @@ class PopulationBase(ABC):
         self.__current_population.sort(key=attrgetter('fitness'), reverse=False)
 
     def add_individual_to_pop(self, individual):
-        """Add new individual to the current population."""
+        """Add an individual to the current population."""
         self.__current_population.append(individual)
+
+    @abstractmethod
+    def add_new_individual(self):
+        """Add new individual to the current population."""
+        pass
 
     def cut_pop_size(self):
         """Resize the current population to pop size."""
@@ -68,11 +78,11 @@ class PopulationBase(ABC):
 
     def get_best_fitness(self):
         self.rank_population()
-        return self.__current_population[0].get_fitness()
+        return self.__current_population[0].fitness
 
     def get_best_genes(self):
         self.rank_population()
-        return self.__current_population[0].get_genes()
+        return self.__current_population[0].genes
 
     def init_global_best(self):
         pass
@@ -87,27 +97,40 @@ class PopulationBase(ABC):
 class Population(PopulationBase):
     """ Population class that encapsulates all of the chromosomes."""
 
-    __slots__ = "current_generation", "pop_size", "chrom_size", "counter", "fitness_function"
-
-    def __init__(self, pop_size, chrom_size, fitness_function):
-        """Initialise the Population."""
-        self.current_generation = []
-        self.pop_size = pop_size
-        self.chrom_size = chrom_size
-        self.counter = self.pop_size
-        self.fitness_function = fitness_function
-
-        self.create_initial_population()
+    def __init__(self, pop_size, chromosome_size, fitness_function):
+        super().__init__(pop_size, chromosome_size, fitness_function)
 
     def create_initial_population(self):
         """Create members of the first population randomly."""
-        initial_population = []
 
         for _ in range(self.pop_size):
-            individual = Chromosome(self.chrom_size, self.fitness_function)
-            initial_population.append(individual)
+            individual = Chromosome(self.chromosome_size, self.fitness_function)
+            self.add_individual_to_pop(individual)
 
-        self.current_generation = initial_population
+    def add_new_individual(self):
+        """Add new individual to the current population."""
+        individual = Chromosome(self.chromosome_size, self.fitness_function)
+        self.add_individual_to_pop(individual)
+
+    def crossover(self, selection_function):
+        """Add new individuals to the population with crossover."""
+
+        child_1 = Chromosome(self.chromosome_size, self.fitness_function)
+        child_2 = Chromosome(self.chromosome_size, self.fitness_function)
+
+        parent_1 = selection_function(self)
+        parent_2 = selection_function(self)
+
+        crossover_index = random.randrange(1, self.chromosome_size - 1)
+
+        child_1.genes = np.concatenate((parent_1.genes[:crossover_index], parent_2.genes[crossover_index:]), axis=None)
+        child_2.genes = np.concatenate((parent_2.genes[:crossover_index], parent_1.genes[crossover_index:]), axis=None)
+
+        child_1.calculate_fitness()
+        child_2.calculate_fitness()
+
+        self.add_individual_to_pop(child_1)
+        self.add_individual_to_pop(child_2)
 
 
 class Swarm(PopulationBase):
@@ -118,13 +141,15 @@ class Swarm(PopulationBase):
 
     def create_initial_population(self):
         """Create members of the first population randomly."""
-        initial_population = []
 
         for _ in range(self.pop_size):
             individual = Particle(self.chromosome_size, self.fitness_function)
-            initial_population.append(individual)
+            self.add_individual_to_pop(individual)
 
-        self.__current_population = initial_population
+    def add_new_individual(self):
+        """Add new individual to the current population."""
+        individual = Particle(self.chromosome_size, self.fitness_function)
+        self.add_individual_to_pop(individual)
 
     def init_global_best(self):
         self.global_best_individual = copy.deepcopy(self.__current_population[0])

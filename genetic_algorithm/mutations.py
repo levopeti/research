@@ -5,36 +5,37 @@ import time
 np.random.seed(int(time.time()))
 
 
-def mutation(mut_id):
+def mutation(mut_id, mutation_probability, mutation_random):
+    """If mutation random is True, the sequence in the genes is random."""
 
     def basic_mutation(member):
-        """Mutation on the all members of the population. the best is exception.
-        """
-        mutation_probability = 0.1
+        """Mutation on all genes with mutation probability."""
 
-        for i in range(member.chrom_size):
+        random_index = list(range(member.chromosome_size))
+        if mutation_random:
+            random.shuffle(random_index)
 
+        new_genes = []
+        for i in random_index:
+            gene = member[i]
             if np.random.rand() < mutation_probability:
-                member.genes[i] = (np.random.rand() * 4) - 2
+                gene = np.random.rand()
+            new_genes.append(gene)
 
-        return member
+        member.genes = new_genes
 
     def bac_mutation(member):
-        """Bacterial mutation.
-        """
-        random_index = list(range(member.chrom_size))
-        random.shuffle(random_index)
+        """Bacterial on all genes."""
 
-        for i in random_index[:300]:  # *1.4s
-            number = member.genes[i]
-            member.genes[i] = (np.random.rand() * 4) - 2
-            new_fitness = member.calculate_fitness()
-            if new_fitness < member.fitness:
-                member.fitness = new_fitness
-            else:
-                member.genes[i] = number
+        random_index = list(range(member.chromosome_size))
+        if mutation_random:
+            random.shuffle(random_index)
 
-        return member
+        for i in random_index:
+            member.set_test()
+            member.genes_test[i] = np.random.rand()
+            member.calculate_fitness_test()
+            member.apply_test_if_better()
 
     if mut_id == 1:
         return basic_mutation

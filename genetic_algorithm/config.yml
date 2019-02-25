@@ -1,10 +1,13 @@
-population_size: 1
-chromosome_size: 7850 # 43200
-generations: 100
-patience: 5
+population_size: 10
+chromosome_size: 2000 # 43200
+max_iteration: 100
+max_fitness_eval:
+patience:
 mutation_probability: 0.2
 pool_size: 4
-lamarck: True
-pool: True
-thread: False
-
+lamarck: False
+pool: False
+num_of_new_individual:
+num_of_crossover:
+elitism: True
+mutation_random: True

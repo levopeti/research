@@ -1,6 +1,4 @@
 import numpy as np
-import keras
-from neural_network import NeuralNet
 import matplotlib.pyplot as plt
 
 from PIL import Image, ImageOps
@@ -54,12 +52,12 @@ class FitnessFunction(object):
             self.model = NeuralNet()
             self.fitness_function = self.fitness_func5
 
-    def calculate(self, individual, acc=False):
-        return self.fitness_function(individual, acc)
+    def calculate(self, individual):
+        return self.fitness_function(individual)
 
     @staticmethod
-    def fitness_func1(individual, acc=False):
-        return sum(individual.genes)
+    def fitness_func1(genes):
+        return sum(genes)
 
     def fitness_func2(self, individual, acc=False):
         dist = np.linalg.norm(individual.genes)

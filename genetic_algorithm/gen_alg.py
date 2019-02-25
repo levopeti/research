@@ -4,12 +4,13 @@ import numpy as np
 
 from population import Population
 from chromosome import Chromosome
-from selections import crossover
+
 from base_alg_class import BaseAlgorithmClass
 
 from pathos.multiprocessing import Pool
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
+from progressbar import ProgressBar, Bar, Percentage, ETA
 
 
 class GeneticAlgorithm(BaseAlgorithmClass):
@@ -26,7 +27,12 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                  patience=None,
                  lamarck=False,
                  pool_size=cpu_count(),
-                 pool=False):
+                 pool=False,
+                 num_of_new_individual=None,
+                 num_of_crossover=None,
+                 elitism=True,
+                 *args,
+                 **kwargs):
         super().__init__(population_size=population_size,
                          chromosome_size=chromosome_size,
                          max_iteration=max_iteration,
@@ -36,85 +42,75 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                          pool_size=pool_size,
                          pool=pool)
 
+        self.num_of_new_individual = self.population_size // 2 if num_of_new_individual is None else num_of_new_individual
+        self.num_of_crossover = self.population_size if num_of_crossover is None else num_of_crossover
+        self.elitism = elitism
+
     def create_population(self):
         """
         Create the first population, calculate the population's fitness and
         rank the population by fitness according to the order specified.
         """
         self.population = Population(self.population_size, self.chromosome_size, self.fitness_function)
-        self.calculate_fitness()
-        self.rank_population()
 
     def init_steps(self):
         """Initialize the iteration steps."""
 
-        self.iteration_steps.append(self.selection())
+        self.iteration_steps.append(self.selection)
         if self.lamarck:
-            self.iteration_steps.append(self.local_search())
-        if self.mutation():
-            self.iteration_steps.append(self.mutation())
-        self.iteration_steps.append(self.calculate_fitness())
-        self.iteration_steps.append(self.rank_population())
-        self.iteration_steps.append(self.cut_pop_size())
+            self.iteration_steps.append(self.local_search)
+        # if self.mutation_function:
+        #     self.iteration_steps.append(self.mutation)
+        self.iteration_steps.append(self.calculate_fitness)
+        self.iteration_steps.append(self.rank_population)
+        self.iteration_steps.append(self.cut_pop_size)
 
     def selection(self):
-        """Create a individuals using the genetic operators (selection, crossover) supplied."""
+        """Create an individuals using the genetic operators (selection, crossover) supplied."""
 
-        selection = self.selection_function
         start = time.time()
 
-        for _ in range(self.population_size):
-            self.crossover_function(self.population, selection)
+        for _ in range(self.num_of_crossover):
+            self.population.crossover(self.selection_function)
 
-        for _ in range(self.population_size // 2):
-            individual = Chromosome(self.chromosome_size, self.fitness_function)
-            individual.fitness = individual.calculate_fitness()
-            self.add_individual_to_pop(individual)
+        for _ in range(self.num_of_new_individual):
+            self.population.add_new_individual()
 
         end = time.time()
-        print('Selection: {0:.2f}s'.format(end - start))
+        print('Selection time: {0:.2f}s'.format(end - start))
 
     def mutation(self):
-        """Mutation on the all members of the population except the best."""
-
+        """
+        Mutation on all members of the population.
+        If elitism is True the best is exception.
+        """
         start = time.time()
+        print("Mutation:")
 
-        if 1:
-            print('Use process pool for mutation with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            members = p.map(self.mutation_function, self.population.get_all()[self.first:], chunksize=1)
-            for i, member in enumerate(members):
-                self.population.set_fitness(member.fitness, i + self.first)
-                self.population.set_genes(member.genes, i + self.first)
+        pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=self.population_size).start()
 
-            p.terminate()
-        elif 0:
-            print('Use thread pool for mutation with pool size {}.'.format(self.pool_size))
-
-            # threads = []
-            # for i, member in enumerate(self.population.get_all()):
-            #     #start = time.time()
-            #     t = threading.Thread(target=self.mutation_function, args=(member,))
-            #     threads.append(t)
-            #     t.start()
+        if self.pool:
+            pass
+            # print('Use process pool for mutation with pool size {}.'.format(self.pool_size))
+            # p = Pool(self.pool_size)
+            # members = p.map(self.mutation_function, self.population.get_all()[self.first:], chunksize=1)
             #
-            #     if i % self.pool_size == 0 or i == len(self.population.get_all()) - 1:
-            #         for t in threads:
-            #             t.join()
+            # for i, member in enumerate(members):
+            #     self.population.set_fitness(member.fitness, i + self.first)
+            #     self.population.set_genes(member.genes, i + self.first)
             #
-            #         #end = time.time()
-            #         threads = []
-            #         #print('Thread process: {0:.2f}s'.format(end - start))
-
-            with ThreadPoolExecutor(max_workers=self.pool_size) as p:
-                p.map(self.mutation_function, self.population.get_all(), chunksize=1)
-
+            # p.terminate()
         else:
-            for member in self.population.get_all()[self.first:]:
-                self.mutation_function(member)
+            ignor_first = self.elitism
+            for i, member in enumerate(self.population):
+                pbar.update(i + 1)
+                if not ignor_first:
+                    member.mutation(self.mutation_function)
+                ignor_first = False
 
+        pbar.finish()
         end = time.time()
-        print('Mutation time: {0:.2f}s'.format(end - start))
+        print('Time of mutation: {0:.2f}s\n'.format(end - start))
 
     def local_search(self):
         """Gradient search based on memetic evolution."""
@@ -151,27 +147,25 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         the supplied fitness_function.
         """
         start = time.time()
+        print("Calculate fitness:")
 
-        if 0:  # self.pool:
-            print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            fitness_values = p.map(self.fitness_function, self.population.get_all())
+        pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=self.population_size).start()
 
-            for i, value in enumerate(fitness_values):
-                self.population.set_fitness(value, i)
-
-            p.terminate()
-        elif 0:  # self.thread:
-            print('Use thread pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            with ThreadPoolExecutor(max_workers=self.pool_size) as p:
-                fitness_values = p.map(self.fitness_function, self.population.get_all())
-
-                for i, value in enumerate(fitness_values):
-                    self.population.set_fitness(value, i)
+        if self.pool:
+            pass
+            # print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
+            # p = Pool(self.pool_size)
+            # fitness_values = p.map(self.fitness_function, self.population.get_all())
+            #
+            # for i, value in enumerate(fitness_values):
+            #     self.population.set_fitness(value, i)
+            #
+            # p.terminate()
         else:
-            for i, member in enumerate(self.population.get_all()):
-                fitness_values = self.fitness_function(member)
-                self.population.set_fitness(fitness_values, i)
+            for i, member in enumerate(self.population):
+                pbar.update(i + 1)
+                member.calculate_fitness()
 
+        pbar.finish()
         end = time.time()
-        print('Calculate pop fitness time: {0:.2f}s'.format(end - start))
+        print('Time of calculation fitness: {0:.2f}s\n'.format(end - start))

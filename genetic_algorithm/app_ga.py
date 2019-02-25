@@ -41,9 +41,10 @@ ff = fitness_functions.FitnessFunction(5)
 
 ga.fitness_function = ff.calculate
 ga.selection_function = selections.random_selection
-ga.mutation_function = mutations.mutation(1)        # basic mutation - 1    bacterial mutation - 2
+ga.mutation_function = mutations.mutation(2)        # basic mutation - 1    bacterial mutation - 2
 ga.first = 0
-ga.memetic_function = memetics.lamarck_one
+# ga.memetic_function = memetics.lamarck_one
+ga.memetic_function = ff.train_steps(number_of_steps=2)
 
 print('Run genetic algorithm\n')
 
@@ -54,8 +55,8 @@ ga.run()
 #ff.model.base_line(500)
 
 #ff.model.sess.close()
-best = ga.best_individual()
-result = np.array(best[1])
-result = result.reshape((ff.size, ff.size, 3))
-plt.imshow(result)
-plt.show()
+# best = ga.best_individual()
+# result = np.array(best[1])
+# result = result.reshape((ff.size, ff.size, 3))
+# plt.imshow(result)
+# plt.show()

@@ -30,7 +30,7 @@ class PopulationBase(ABC):
 
     def __next__(self):
         self.counter += 1
-        if self.counter < self.pop_size:
+        if self.counter < len(self.__current_population):
             return self.__current_population[self.counter]
         else:
             self.counter = -1
@@ -43,7 +43,15 @@ class PopulationBase(ABC):
         return self.__current_population[index]
 
     def __len__(self):
-        return self.pop_size
+        return len(self.__current_population)
+
+    @property
+    def current_population(self):
+        return self.__current_population
+
+    @current_population.setter
+    def current_population(self, chromosomes):
+        self.__current_population = chromosomes
 
     # def get_all(self):
     #     return self.__current_population
@@ -105,11 +113,13 @@ class Population(PopulationBase):
 
         for _ in range(self.pop_size):
             individual = Chromosome(self.chromosome_size, self.fitness_function)
+            individual.calculate_fitness()
             self.add_individual_to_pop(individual)
 
     def add_new_individual(self):
-        """Add new individual to the current population."""
+        """Add new individual with fitness value to the current population."""
         individual = Chromosome(self.chromosome_size, self.fitness_function)
+        individual.calculate_fitness()
         self.add_individual_to_pop(individual)
 
     def crossover(self, selection_function):

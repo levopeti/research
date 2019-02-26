@@ -14,17 +14,17 @@ class BaseAlgorithmClass(ABC):
                  chromosome_size=10,
                  max_iteration=None,
                  max_fitness_eval=None,
+                 min_fitness=None,
                  patience=None,
-                 lamarck=False,
                  pool_size=None,
                  pool=False):
 
         self.patience = float("inf") if patience is None else patience
         self.max_iteration = float("inf") if max_iteration is None else max_iteration
         self.max_fitness_eval = float("inf") if max_fitness_eval is None else max_fitness_eval
+        self.min_fitness = 0 if min_fitness is None else min_fitness
         self.population_size = population_size
         self.chromosome_size = chromosome_size
-        self.lamarck = lamarck
         self.pool_size = pool_size
         self.pool = pool
 
@@ -39,8 +39,10 @@ class BaseAlgorithmClass(ABC):
         self.iteration_steps = []
         self.iteration = 0
         self.no_improvement = 0
-        self.num_of_fitness_eval = 0
+        self.num_of_fitness_eval = 0  # TODO
         self.best_fitness = None
+
+        # TODO: Time dict
 
     def compile(self,
                 fitness_function,
@@ -65,7 +67,7 @@ class BaseAlgorithmClass(ABC):
         by fitness ascending order.
         """
         self.create_population()
-        self.calculate_fitness()
+        # self.calculate_fitness()
         self.population.rank_population()
         self.population.init_global_best()
         self.population.set_global_best()
@@ -99,16 +101,18 @@ class BaseAlgorithmClass(ABC):
         self.iteration = 1
         self.best_fitness = self.population.get_best_fitness()
 
-        while self.no_improvement < self.patience and self.max_iteration >= self.iteration:
+        while self.no_improvement < self.patience and self.max_iteration >= self.iteration \
+                and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval:
             start = time.time()
             print('{}. iteration'.format(self.iteration))
             self.next_iteration()
-            print('best fitness values:')
+            print('Best fitness values:')
             for j in range(4 if self.population_size >= 4 else self.population_size):
                 print('{0:.3f}'.format(self.population[j].fitness))
 
             end = time.time()
-            print('Process time: {0:.2f}s\n\n'.format(end - start))
+            print('\nNumber of fitness evaluation so far: ', self.num_of_fitness_eval)
+            print('Iteration process time: {0:.2f}s\n\n'.format(end - start))
 
             if self.best_fitness > self.population.get_best_fitness():
                 self.no_improvement = 0
@@ -143,3 +147,10 @@ class BaseAlgorithmClass(ABC):
     def add_new_individual(self):
         """Add new individual to the current population."""
         self.population.add_new_individual()
+
+    def get_all_fitness_eval(self):
+        """Count all evaluation and set they to 0."""
+        for i, member in enumerate(self.population):
+            self.num_of_fitness_eval += member.num_fitness_eval
+            member.num_fitness_eval = 0
+

@@ -2,6 +2,37 @@ import copy
 import random
 
 
+def local_search(number_of_steps, step_size, lamarck_random, member):
+    """
+    Local search for all chromosomes in a given steps.
+    :param number_of_steps: Number of steps to the direction of the negative gradient.
+    :param step_size: Size of step.
+    :param lamarck_random: If True, the sequence in the genes is random.
+    :param member: Current chromosome.
+    """
+
+    for _ in range(number_of_steps):
+        random_index = list(range(member.chromosome_size))
+        if lamarck_random:
+            random.shuffle(random_index)
+
+        for i in random_index:
+            # take one step positive direction
+            member.set_test()
+            member.genes_test[i] += step_size
+            member.resize_invalid_genes_test()
+            member.calculate_fitness_test()
+            test_is_better = member.apply_test_if_better()
+
+            if not test_is_better:
+                # take one step negative direction, if positive is not better
+                member.set_test()
+                member.genes_test[i] -= step_size
+                member.resize_invalid_genes_test()
+                member.calculate_fitness_test()
+                member.apply_test_if_better()
+
+
 def lamarck_one(member):
     random_index = list(range(member.chrom_size))
     random.shuffle(random_index)

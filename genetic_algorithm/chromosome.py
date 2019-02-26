@@ -15,7 +15,7 @@ class ChromosomeBase(ABC):
 
     def __init__(self, chromosome_size, fitness_function):
         self.chromosome_size = chromosome_size
-        self.__fitness = float('inf')
+        self.__fitness = None
         self.__genes = []
 
         self.__fitness_test = None
@@ -24,6 +24,7 @@ class ChromosomeBase(ABC):
         self.create_individual()
         self.fitness_function = fitness_function
 
+        self.num_fitness_eval = 0
         self.counter = -1
 
     def __repr__(self):
@@ -55,6 +56,7 @@ class ChromosomeBase(ABC):
     def calculate_fitness(self):
         """Calculate the fitness value of the chromosome."""
         self.__fitness = self.fitness_function.calculate(self.__genes)
+        self.num_fitness_eval += 1
 
     @property
     def fitness(self):
@@ -73,17 +75,10 @@ class ChromosomeBase(ABC):
 
     @genes.setter
     def genes(self, genes):
-        self.resize_invalid_genes(genes)
-
-        if self.check_genes(genes):
-            self.__genes = genes
-        else:
-            raise ValueError("Invalid values for genes!")
-
-    @staticmethod
-    def check_genes(genes):
-        """Check the validation of the genes."""
-        return True
+        if len(genes) != self.chromosome_size:
+            raise ValueError("Length of genes is not valid!")
+        self.__genes = genes
+        self.resize_invalid_genes()
 
     @property
     def genes_test(self):
@@ -91,26 +86,31 @@ class ChromosomeBase(ABC):
 
     @genes_test.setter
     def genes_test(self, genes):
-        self.resize_invalid_genes(genes)
-
-        if self.check_genes(genes):
-            self.__genes_test = genes
-        else:
-            raise ValueError("Invalid values for genes!")
+        if len(genes) != self.chromosome_size:
+            raise ValueError("Length of genes test is not valid!")
+        self.__genes_test = genes
+        self.resize_invalid_genes_test()
 
     def calculate_fitness_test(self):
         """Calculate the test fitness value of the test genes."""
-        self.__fitness_test = self.fitness_function.calculate(self.__genes_test)
+        if self.genes_test is None:
+            raise ValueError("Genes test is not set!")
 
-    @staticmethod
-    def resize_invalid_genes(genes):
-        """Resize invalid genes in the input and return the valid one."""
-        return genes
+        self.__fitness_test = self.fitness_function.calculate(self.__genes_test)
+        self.num_fitness_eval += 1
+
+    def resize_invalid_genes(self):
+        """Resize invalid genes to valid."""
+        pass
+
+    def resize_invalid_genes_test(self):
+        """Resize invalid genes test to valid."""
+        pass
 
     def set_test(self):
         """Set test values to current values."""
-        self.__genes_test = self.__genes.copy()
-        self.__fitness_test = self.__fitness.copy()
+        self.genes_test = self.__genes.copy()
+        self.__fitness_test = self.__fitness
 
     def apply_test(self):
         """Set current values to test values and set test values to None."""
@@ -118,7 +118,7 @@ class ChromosomeBase(ABC):
         if self.__genes_test is None or self.__fitness_test is None:
             raise ValueError("Test values should not be None.")
 
-        self.__genes = self.__genes_test
+        self.genes = self.__genes_test
         self.__fitness = self.__fitness_test
 
         self.__genes_test = None
@@ -130,18 +130,28 @@ class ChromosomeBase(ABC):
         self.__fitness_test = None
 
     def apply_test_if_better(self):
-        """Apply test values if they are better and set to None."""
+        """
+        Apply test values and return True if they are better
+        and set to None, else return False.
+        """
 
         if self.__genes_test is None or self.__fitness_test is None:
             raise ValueError("Test values should not be None.")
 
         # if test is better
         if self.__fitness_test < self.__fitness:
-            self.__genes = self.__genes_test
+            self.genes = self.__genes_test
             self.__fitness = self.__fitness_test
 
-        self.__genes_test = None
-        self.__fitness_test = None
+            self.__genes_test = None
+            self.__fitness_test = None
+
+            return True
+        else:
+            self.__genes_test = None
+            self.__fitness_test = None
+
+            return False
 
 
 class Chromosome(ChromosomeBase):
@@ -154,9 +164,29 @@ class Chromosome(ChromosomeBase):
         """Create a candidate solution representation."""
         self.genes = np.random.rand(self.chromosome_size)
 
-    def mutation(self, mutation_function):
-        """Apply mutation function on the chromosome."""
-        mutation_function(self)
+    def resize_invalid_genes(self):
+        """Resize invalid genes to valid."""
+
+        for i in range(self.chromosome_size):
+            if self.genes[i] > 1:
+                print("invalid ", self.genes[i])
+                self.genes[i] = 1
+            elif self.genes[i] < 0:
+                print("invalid ", self.genes[i])
+                self.genes[i] = 0
+
+    def resize_invalid_genes_test(self):
+        """Resize invalid genes test to valid."""
+
+        for i in range(self.chromosome_size):
+            if self.genes_test[i] > 1:
+                self.genes_test[i] = 1
+            elif self.genes_test[i] < 0:
+                self.genes_test[i] = 0
+
+    def apply_on_chromosome(self, func):
+        """Apply function on the chromosome."""
+        func(self)
 
 
 class Particle(ChromosomeBase):

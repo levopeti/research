@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 
 
+# TODO: transfer function
 class FitnessFunction(object):
     def __init__(self, id):
         self.id = id
@@ -57,7 +58,9 @@ class FitnessFunction(object):
 
     @staticmethod
     def fitness_func1(genes):
-        return sum(genes)
+        x = (np.array(genes) * 10) - 5
+        n = len(genes)
+        return 10 * n + sum([i * i - 10 * np.cos(2 * i * np.pi) for i in x])
 
     def fitness_func2(self, individual, acc=False):
         dist = np.linalg.norm(individual.genes)

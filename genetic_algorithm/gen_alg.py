@@ -61,16 +61,19 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.iteration_steps.append(self.selection)
             self.iteration_steps.append(self.rank_population)
             self.iteration_steps.append(self.get_all_fitness_eval)
+            self.iteration_steps.append(self.print_best_values)
 
         if self.memetic_function:
             self.iteration_steps.append(self.local_search)
             self.iteration_steps.append(self.rank_population)
             self.iteration_steps.append(self.get_all_fitness_eval)
+            self.iteration_steps.append(self.print_best_values)
 
         if self.mutation_function:
             self.iteration_steps.append(self.mutation)
             self.iteration_steps.append(self.rank_population)
             self.iteration_steps.append(self.get_all_fitness_eval)
+            self.iteration_steps.append(self.print_best_values)
 
         # self.iteration_steps.append(self.calculate_fitness)
         # self.iteration_steps.append(self.rank_population)

@@ -104,14 +104,11 @@ class BaseAlgorithmClass(ABC):
         while self.no_improvement < self.patience and self.max_iteration >= self.iteration \
                 and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval:
             start = time.time()
-            print('{}. iteration'.format(self.iteration))
+            print('**********************************{}. iteration**********************************'.format(self.iteration))
             self.next_iteration()
-            print('Best fitness values:')
-            for j in range(4 if self.population_size >= 4 else self.population_size):
-                print('{0:.3f}'.format(self.population[j].fitness))
 
             end = time.time()
-            print('\nNumber of fitness evaluation so far: ', self.num_of_fitness_eval)
+            print('Number of fitness evaluation so far: ', self.num_of_fitness_eval)
             print('Iteration process time: {0:.2f}s\n\n'.format(end - start))
 
             if self.best_fitness > self.population.get_best_fitness():
@@ -153,4 +150,13 @@ class BaseAlgorithmClass(ABC):
         for i, member in enumerate(self.population):
             self.num_of_fitness_eval += member.num_fitness_eval
             member.num_fitness_eval = 0
+
+    def print_best_values(self, top_n=4):
+        """Print the top n pieces fitness values"""
+        print('Best fitness values:')
+        for j in range(top_n if self.population_size >= top_n else self.population_size):
+            print('{0:.3f}'.format(self.population[j].fitness))
+        print('\n')
+
+
 

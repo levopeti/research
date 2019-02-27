@@ -59,25 +59,12 @@ class GeneticAlgorithm(BaseAlgorithmClass):
 
         if self.selection_function:
             self.iteration_steps.append(self.selection)
-            self.iteration_steps.append(self.rank_population)
-            self.iteration_steps.append(self.get_all_fitness_eval)
-            self.iteration_steps.append(self.print_best_values)
 
         if self.memetic_function:
             self.iteration_steps.append(self.local_search)
-            self.iteration_steps.append(self.rank_population)
-            self.iteration_steps.append(self.get_all_fitness_eval)
-            self.iteration_steps.append(self.print_best_values)
 
         if self.mutation_function:
             self.iteration_steps.append(self.mutation)
-            self.iteration_steps.append(self.rank_population)
-            self.iteration_steps.append(self.get_all_fitness_eval)
-            self.iteration_steps.append(self.print_best_values)
-
-        # self.iteration_steps.append(self.calculate_fitness)
-        # self.iteration_steps.append(self.rank_population)
-        self.iteration_steps.append(self.cut_pop_size)
 
     def selection(self):
         """Create an individuals using the genetic operators (selection, crossover) supplied."""
@@ -125,7 +112,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             members = p.map(func, self.population[first:], chunksize=1)
 
             if self.elitism:
-                members.append(self.population[first])
+                members.append(self.population[0])
 
             self.population.current_population = members
             p.terminate()

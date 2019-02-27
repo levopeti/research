@@ -36,6 +36,9 @@ class BaseAlgorithmClass(ABC):
         self.memetic_function = None
         self.crossover_function = None
 
+        self.callbacks = None
+        self.logs = None
+
         self.iteration_steps = []
         self.iteration = 0
         self.no_improvement = 0
@@ -49,7 +52,8 @@ class BaseAlgorithmClass(ABC):
                 selection_function,
                 mutation_function=None,
                 memetic_function=None,
-                crossover_function=None):
+                crossover_function=None,
+                callbacks=None):
         """Compile the functions of the algorithm."""
 
         self.fitness_function = fitness_function
@@ -57,6 +61,7 @@ class BaseAlgorithmClass(ABC):
         self.mutation_function = mutation_function
         self.memetic_function = memetic_function
         self.crossover_function = crossover_function
+        self.callbacks = callbacks if callbacks else []
 
         self.init_population()
 
@@ -92,19 +97,31 @@ class BaseAlgorithmClass(ABC):
     def next_iteration(self):
         """Create the next iteration or generation with the corresponding steps."""
 
+        self.callbacks_on_iteration_begin()
+
         for step in self.iteration_steps:
+            self.callbacks_on_step_begin()
             step()
+
+            self.rank_population()
+            self.get_all_fitness_eval()
+            self.print_best_values(top_n=4)
+            self.callbacks_on_step_end()
+
+        self.cut_pop_size()
+        self.callbacks_on_iteration_end()
 
     def run(self):
         """Run (solve) the algorithm."""
 
         self.iteration = 1
         self.best_fitness = self.population.get_best_fitness()
+        self.callbacks_on_search_begin()
 
         while self.no_improvement < self.patience and self.max_iteration >= self.iteration \
                 and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval:
             start = time.time()
-            print('**********************************{}. iteration**********************************'.format(self.iteration))
+            print('*' * 36, '{}. iteration'.format(self.iteration), '*' * 36)
             self.next_iteration()
 
             end = time.time()
@@ -118,6 +135,39 @@ class BaseAlgorithmClass(ABC):
                 self.no_improvement += 1
 
             self.iteration += 1
+
+        self.callbacks_on_search_end()
+
+    def callbacks_on_search_begin(self):
+        """Call the on_search_begin function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
+            callback.set_model(self)
+
+    def callbacks_on_search_end(self):
+        """Call the on_search_end function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
+
+    def callbacks_on_iteration_begin(self):
+        """Call the on_iteration_begin function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
+
+    def callbacks_on_iteration_end(self):
+        """Call the on_iteration_end function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
+
+    def callbacks_on_step_begin(self):
+        """Call the on_step_begin function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
+
+    def callbacks_on_step_end(self):
+        """Call the on_step_end function of the callbacks."""
+        for callback in self.callbacks:
+            callback.on_iteration_end(self.logs)
 
     def last_iteration(self):
         """Return members of the last iteration as a generator function."""
@@ -157,6 +207,3 @@ class BaseAlgorithmClass(ABC):
         for j in range(top_n if self.population_size >= top_n else self.population_size):
             print('{0:.3f}'.format(self.population[j].fitness))
         print('\n')
-
-
-

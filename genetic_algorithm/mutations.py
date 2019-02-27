@@ -5,7 +5,7 @@ import time
 np.random.seed(int(time.time()))
 
 
-def mutation(name, mutation_probability, mutation_random):
+def mutation(name, mutation_probability, num_of_clones, mutation_random):
     """If mutation random is True, the sequence in the genes is random."""
 
     def basic_mutation(member):
@@ -27,16 +27,17 @@ def mutation(name, mutation_probability, mutation_random):
 
     def bac_mutation(member):
         """Bacterial on all genes."""
-        # TODO: szakdoga
+
         random_index = list(range(member.chromosome_size))
         if mutation_random:
             random.shuffle(random_index)
 
         for i in random_index:
-            member.set_test()
-            member.genes_test[i] = np.random.rand()
-            member.calculate_fitness_test()
-            member.apply_test_if_better()
+            for _ in range(num_of_clones):
+                member.set_test()
+                member.genes_test[i] = np.random.rand()
+                member.calculate_fitness_test()
+                member.apply_test_if_better()
 
     if name == "basic":
         return basic_mutation

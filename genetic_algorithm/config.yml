@@ -1,9 +1,9 @@
 population_size: 20
-chromosome_size: 800 # 43200
-max_iteration: 5
-max_fitness_eval: 60000
+chromosome_size: 100 # 43200
+max_iteration: 10
+max_fitness_eval:
 min_fitness:
-patience:
+patience: 10
 mutation_probability: 0.2
 pool_size: 4
 lamarck_random: True
@@ -14,5 +14,6 @@ number_of_steps:
 pool: True
 num_of_new_individual:
 num_of_crossover:
-elitism: False
+elitism: True
 mutation_random: True
+num_of_clones: 1

@@ -1,6 +1,5 @@
 from chromosome import Chromosome, Particle
 from operator import attrgetter
-import copy
 import random
 import numpy as np
 
@@ -53,15 +52,6 @@ class PopulationBase(ABC):
     def current_population(self, chromosomes):
         self.__current_population = chromosomes
 
-    # def get_all(self):
-    #     return self.__current_population
-    #
-    # def set_fitness(self, fitness, i):
-    #     self.__current_population[i].fitness = fitness
-    #
-    # def set_genes(self, genes, i):
-    #     self.__current_population[i].genes = genes
-
     @abstractmethod
     def create_initial_population(self):
         """Create members of the first population randomly."""
@@ -96,7 +86,10 @@ class PopulationBase(ABC):
         pass
 
     def set_global_best(self):
-        pass
+        """Set global best values."""
+        if self.__current_population[0].fitness < self.global_best_individual.fitness:
+            self.global_best_individual.fitness = self.__current_population[0].fitness
+            self.global_best_individual.genes = self.__current_population[0].genes
 
     def set_personal_bests(self):
         pass
@@ -107,6 +100,9 @@ class Population(PopulationBase):
 
     def __init__(self, pop_size, chromosome_size, fitness_function):
         super().__init__(pop_size, chromosome_size, fitness_function)
+
+        self.global_best_individual = Chromosome(self.chromosome_size, self.fitness_function)
+        self.global_best_individual.calculate_fitness()
 
     def create_initial_population(self):
         """Create members of the first population randomly."""

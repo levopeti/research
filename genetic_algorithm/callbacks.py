@@ -38,6 +38,9 @@ class LogToFile(CallbackBase):
 
         self.file_path = file_path
 
+        if not os.path.exists(self.file_path):
+            os.mkdir(self.file_path)
+
     def on_iteration_end(self, logs):
         with open(os.path.join(self.file_path, "log.txt"), "a+") as log_file:
             log_file.write(str(logs))

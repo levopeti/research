@@ -1,16 +1,12 @@
 import time
-import matplotlib.pyplot as plt
-import numpy as np
-import functools
+from functools import partial
 
 from population import Population
-from chromosome import Chromosome
 
 from base_alg_class import BaseAlgorithmClass
 
 from pathos.multiprocessing import Pool
-from multiprocessing import cpu_count, Lock, Value, Manager
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count, Manager
 from progressbar import ProgressBar, Bar, Percentage, ETA
 
 
@@ -56,29 +52,37 @@ class GeneticAlgorithm(BaseAlgorithmClass):
 
     def init_steps(self):
         """Initialize the iteration steps."""
+        self.iteration_steps = []
 
         if self.selection_function:
             self.iteration_steps.append(self.selection)
 
-        if self.memetic_function:
-            self.iteration_steps.append(self.local_search)
+        if self.num_of_new_individual:
+            self.iteration_steps.append(self.add_new_individuals)
 
         if self.mutation_function:
-            self.iteration_steps.append(self.mutation)
+            self.iteration_steps.append(partial(self.population_function, "Mutation"))
+
+        if self.memetic_function:
+            self.iteration_steps.append(partial(self.population_function, "Local search"))
 
     def selection(self):
-        """Create an individuals using the genetic operators (selection, crossover) supplied."""
+        """Add new individuals using the genetic operators (selection, crossover) supplied."""
 
         start = time.time()
 
         for _ in range(self.num_of_crossover):
             self.population.crossover(self.selection_function)
 
+        end = time.time()
+        print('Selection time: {0:.2f}s\n'.format(end - start))
+
+    def add_new_individuals(self):
+        """Add new individuals to the population."""
         for _ in range(self.num_of_new_individual):
             self.population.add_new_individual()
 
-        end = time.time()
-        print('Selection time: {0:.2f}s\n'.format(end - start))
+        print('Add new individuals\n')
 
     def mutation(self):
         """
@@ -94,7 +98,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             manager = Manager()
             lock = manager.Lock()
             counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
 
             def pool_mutation(inside_lock, inside_counter, inside_member):
                 inside_member.apply_on_chromosome(self.mutation_function)
@@ -109,7 +113,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             func = functools.partial(pool_mutation, lock, counter)
             first = 1 if self.elitism else 0
 
-            members = p.map(func, self.population[first:], chunksize=1)
+            members = p.map(func, self.population[first:])
 
             if self.elitism:
                 members.append(self.population[0])
@@ -117,7 +121,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.population.current_population = members
             p.terminate()
         else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
             ignor_first = self.elitism
 
             for i, member in enumerate(self.population):
@@ -130,21 +134,27 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         end = time.time()
         print('Mutation time: {0:.2f}s\n'.format(end - start))
 
-    def local_search(self):
-        """Gradient search based on memetic evolution."""
+    def population_function(self, name):
+        """Apply a function (local search, mutation) to all chromosomes."""
         start = time.time()
-        print("Local search:")
+        print("{}:".format(name))
+
+        if name == "Local search":
+            current_function = self.memetic_function
+        elif name == "Mutation":
+            current_function = self.mutation_function
+        else:
+            raise NameError("Bad type of function.")
 
         if self.pool:
-            print('Use process pool for local search with pool size {}.'.format(self.pool_size))
             p = Pool(self.pool_size)
             manager = Manager()
             lock = manager.Lock()
             counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
 
-            def pool_memetic(inside_lock, inside_counter, inside_member):
-                inside_member.apply_on_chromosome(self.memetic_function)
+            def pool_function(inside_lock, inside_counter, inside_member):
+                inside_member.apply_on_chromosome(current_function)
 
                 inside_lock.acquire()
                 inside_counter.value += 1
@@ -153,21 +163,29 @@ class GeneticAlgorithm(BaseAlgorithmClass):
 
                 return inside_member
 
-            func = functools.partial(pool_memetic, lock, counter)
-            members = p.map(func, self.population[:], chunksize=1)
+            func = partial(pool_function, lock, counter)
+            first = 1 if self.elitism and name == "Mutation" else 0
+
+            members = p.map(func, self.population[first:])
+
+            if self.elitism and name == "Mutation":
+                members.append(self.population[0])
 
             self.population.current_population = members
             p.terminate()
         else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+            ignor_first = self.elitism and name == "Mutation"
 
             for i, member in enumerate(self.population):
                 pbar.update(i + 1)
-                member.apply_on_chromosome(self.memetic_function)
+                if not ignor_first:
+                    member.apply_on_chromosome(current_function)
+                ignor_first = False
 
         pbar.finish()
         end = time.time()
-        print('Local search time: {0:.2f}s\n'.format(end - start))
+        print('{0} time: {1:.2f}s\n'.format(name, end - start))
 
     def calculate_fitness(self):
         """
@@ -183,7 +201,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             manager = Manager()
             lock = manager.Lock()
             counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
 
             def pool_fitness(inside_lock, inside_counter, inside_member):
                 inside_member.calculate_fitness()
@@ -201,7 +219,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.population.current_population = members
             p.terminate()
         else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=100), ETA()], maxval=len(self.population)).start()
+            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
 
             for i, member in enumerate(self.population):
                 pbar.update(i + 1)

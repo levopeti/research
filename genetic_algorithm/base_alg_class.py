@@ -1,5 +1,10 @@
 from abc import ABC, abstractmethod
 import time
+import yaml
+
+from selections import selection_functions
+from memetics import memetic_functions
+from mutations import mutation_functions
 
 
 class BaseAlgorithmClass(ABC):
@@ -34,36 +39,51 @@ class BaseAlgorithmClass(ABC):
         self.selection_function = None
         self.mutation_function = None
         self.memetic_function = None
-        self.crossover_function = None
 
+        self.config = None
         self.callbacks = None
         self.logs = None
 
         self.iteration_steps = []
         self.iteration = 0
         self.no_improvement = 0
-        self.num_of_fitness_eval = 0  # TODO
+        self.num_of_fitness_eval = 0
         self.best_fitness = None
+        self.remote_config = False
+        self.stop = False
 
+        if self.pool:
+            print('Use process pool with pool size {}.'.format(self.pool_size))
         # TODO: Time dict
 
-    def compile(self,
-                fitness_function,
-                selection_function,
-                mutation_function=None,
-                memetic_function=None,
-                crossover_function=None,
-                callbacks=None):
+    def compile(self, config, fitness_function, remote_config=False, callbacks=None):
         """Compile the functions of the algorithm."""
 
+        self.config = config
+        self.remote_config = remote_config
+
         self.fitness_function = fitness_function
-        self.selection_function = selection_function
-        self.mutation_function = mutation_function
-        self.memetic_function = memetic_function
-        self.crossover_function = crossover_function
         self.callbacks = callbacks if callbacks else []
 
+        self.selection_function = selection_functions(**self.config)
+        self.mutation_function = mutation_functions(**self.config)
+        self.memetic_function = memetic_functions(**self.config)
+
         self.init_population()
+
+    def recompile(self):
+        """Recompile the functions of the algorithm."""
+
+        with open(self.remote_config, 'r') as config_file:
+            self.config = yaml.load(config_file)
+
+        if self.config["active"] is True:
+            self.selection_function = selection_functions(**self.config)
+            self.mutation_function = mutation_functions(**self.config)
+            self.memetic_function = memetic_functions(**self.config)
+            self.init_steps()
+
+            self.stop = self.config["stop"]
 
     def init_population(self):
         """
@@ -72,17 +92,11 @@ class BaseAlgorithmClass(ABC):
         by fitness ascending order.
         """
         self.create_population()
-        # self.calculate_fitness()
         self.population.rank_population()
         self.population.init_global_best()
         self.population.set_global_best()
         self.population.set_personal_bests()
         self.init_steps()
-
-    @abstractmethod
-    def calculate_fitness(self):
-        """Calculate and set the fitness values of the individuals of the population."""
-        pass
 
     @abstractmethod
     def create_population(self):
@@ -109,6 +123,7 @@ class BaseAlgorithmClass(ABC):
             self.callbacks_on_step_end()
 
         self.cut_pop_size()
+        self.set_global_best()
         self.callbacks_on_iteration_end()
 
     def run(self):
@@ -119,7 +134,8 @@ class BaseAlgorithmClass(ABC):
         self.callbacks_on_search_begin()
 
         while self.no_improvement < self.patience and self.max_iteration >= self.iteration \
-                and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval:
+                and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval\
+                and self.stop is False:
             start = time.time()
             print('*' * 36, '{}. iteration'.format(self.iteration), '*' * 36)
             self.next_iteration()
@@ -127,6 +143,9 @@ class BaseAlgorithmClass(ABC):
             end = time.time()
             print('Number of fitness evaluation so far: ', self.num_of_fitness_eval)
             print('Iteration process time: {0:.2f}s\n\n'.format(end - start))
+
+            if self.remote_config:
+                self.recompile()
 
             if self.best_fitness > self.population.get_best_fitness():
                 self.no_improvement = 0
@@ -183,6 +202,10 @@ class BaseAlgorithmClass(ABC):
         """Sort the population by fitness ascending order."""
         self.population.rank_population()
 
+    def set_global_best(self):
+        """Set global best values."""
+        self.population.set_global_best()
+
     def cut_pop_size(self):
         """Resize the current population to pop size."""
         self.population.cut_pop_size()
@@ -204,6 +227,6 @@ class BaseAlgorithmClass(ABC):
     def print_best_values(self, top_n=4):
         """Print the top n pieces fitness values"""
         print('Best fitness values:')
-        for j in range(top_n if self.population_size >= top_n else self.population_size):
-            print('{0:.3f}'.format(self.population[j].fitness))
+        for i in range(top_n if self.population_size >= top_n else self.population_size):
+            print('{0:.3f}'.format(self.population[i].fitness))
         print('\n')

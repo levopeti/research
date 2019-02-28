@@ -1,19 +1,36 @@
+active: True
+
+##### Population and other
 population_size: 20
-chromosome_size: 100 # 43200
+chromosome_size: 100
+pool: False
+pool_size: 4 # default: cpu_count()
+
+##### Stop conditions
 max_iteration: 10
 max_fitness_eval:
 min_fitness:
 patience: 10
-mutation_probability: 0.2
-pool_size: 4
-lamarck_random: True
-gradient_rate:
-step_size:
-number_of_steps:
+stop: True
 
-pool: True
-num_of_new_individual:
-num_of_crossover:
+##### Selection
+# options: random, tournament, better half
+selection_type: "random"
+num_of_new_individual:  # default: population_size // 2
+num_of_crossover:  # default: population_size // 4
+
+#### Mutation
+# options: basic, bacterial
+mutation_type: "bacterial"
 elitism: True
-mutation_random: True
+mutation_random_sequence: True
+# basic
+mutation_probability: 0.2
+# bacterial
 num_of_clones: 1
+
+##### Memetic
+memetic: True
+lamarck_random_sequence: True
+step_size: 0.1
+number_of_steps: 1

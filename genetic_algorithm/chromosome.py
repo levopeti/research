@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import copy
 
 from abc import ABC, abstractmethod
 
@@ -147,6 +146,8 @@ class ChromosomeBase(ABC):
             self.__fitness_test = None
 
             return True
+
+        # if original is better
         else:
             self.__genes_test = None
             self.__fitness_test = None

@@ -1,10 +1,6 @@
 import yaml
 import time
-import functools
 import fitness_functions
-from memetics import local_search
-from selections import random_selection, tournament_selection, better_half_selection
-import mutations
 from callbacks import LogToFile
 import os
 import numpy as np
@@ -12,28 +8,21 @@ import matplotlib.pyplot as plt
 
 from gen_alg import GeneticAlgorithm
 
-# TODO: Callbacks, RemoteControl
+# TODO: LogsCallback, Fitness function class
 
-config = yaml.load(open("config.yml", 'r'))
-mutation_probability = config["mutation_probability"]
-mutation_random = config["mutation_random"]
-num_of_clones = config["num_of_clones"]
+with open("config.yml", 'r') as config_file:
+    config = yaml.load(config_file)
 
 ga = GeneticAlgorithm(**config)
 
 ff = fitness_functions.FitnessFunction(1)
-mut = mutations.mutation("bacterial", mutation_probability, num_of_clones, mutation_random)
-mem_f = functools.partial(local_search, 1, 0.1, True)
 
-ltf = LogToFile(file_path="/home/biot/projects/research")
+ltf = LogToFile(file_path="/home/biot/projects/research/logs")
 
-
-# TODO: config
-ga.compile(fitness_function=ff,
-           selection_function=better_half_selection,
-           mutation_function=mut,
-           memetic_function=None,
-           callbacks=[ltf])
+ga.compile(config=config,
+           fitness_function=ff,
+           remote_config="config.yml",
+           callbacks=None)
 
 print("Run genetic algorithm\n")
 

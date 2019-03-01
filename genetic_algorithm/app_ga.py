@@ -1,7 +1,7 @@
 import yaml
 import time
 import fitness_functions
-from callbacks import LogToFile
+from callbacks import LogToFile, RemoteConfig
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,12 +17,16 @@ ga = GeneticAlgorithm(**config)
 
 ff = fitness_functions.FitnessFunction(1)
 
+callback_list = []
 ltf = LogToFile(file_path="/home/biot/projects/research/logs")
+callback_list.append(ltf)
+
+rc = RemoteConfig(config_file="config.yml")
+callback_list.append(rc)
 
 ga.compile(config=config,
            fitness_function=ff,
-           remote_config="config.yml",
-           callbacks=None)
+           callbacks=callback_list)
 
 print("Run genetic algorithm\n")
 
@@ -32,4 +36,3 @@ for key, item in config.items():
 print('\n')
 
 ga.run()
-

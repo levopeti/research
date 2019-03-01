@@ -49,7 +49,6 @@ class BaseAlgorithmClass(ABC):
         self.no_improvement = 0
         self.num_of_fitness_eval = 0
         self.best_fitness = None
-        self.remote_config = False
         self.stop = False
         self.progress_bar = True
 
@@ -57,11 +56,10 @@ class BaseAlgorithmClass(ABC):
             print('Use process pool with pool size {}.'.format(self.pool_size))
         # TODO: Time dict
 
-    def compile(self, config, fitness_function, remote_config=False, callbacks=None):
+    def compile(self, config, fitness_function, callbacks=None):
         """Compile the functions of the algorithm."""
 
         self.config = config
-        self.remote_config = remote_config
 
         self.fitness_function = fitness_function
         self.callbacks = callbacks if callbacks else []
@@ -71,22 +69,6 @@ class BaseAlgorithmClass(ABC):
         self.memetic_function = memetic_functions(**self.config)
 
         self.init_population()
-
-    def recompile(self):
-        """Recompile the functions of the algorithm."""
-
-        with open(self.remote_config, 'r') as config_file:
-            self.config = yaml.load(config_file)
-
-        if self.config["active"] is True:
-            self.selection_function = selection_functions(**self.config)
-            self.mutation_function = mutation_functions(**self.config)
-            self.memetic_function = memetic_functions(**self.config)
-            self.init_steps()
-
-            self.stop = self.config["stop"]
-            self.pool = self.config["pool"]
-            self.pool_size = self.config["pool_size"]
 
     def init_population(self):
         """
@@ -147,9 +129,6 @@ class BaseAlgorithmClass(ABC):
             print('Number of fitness evaluation so far: ', self.num_of_fitness_eval)
             print('Iteration process time: {0:.2f}s\n\n'.format(end - start))
 
-            if self.remote_config:
-                self.recompile()
-
             if self.best_fitness > self.population.get_best_fitness():
                 self.no_improvement = 0
                 self.best_fitness = self.population.get_best_fitness()
@@ -163,18 +142,18 @@ class BaseAlgorithmClass(ABC):
     def callbacks_on_search_begin(self):
         """Call the on_search_begin function of the callbacks."""
         for callback in self.callbacks:
-            callback.on_iteration_end(self.logs)
+            callback.on_search_begin(self.logs)
             callback.set_model(self)
 
     def callbacks_on_search_end(self):
         """Call the on_search_end function of the callbacks."""
         for callback in self.callbacks:
-            callback.on_iteration_end(self.logs)
+            callback.on_search_end(self.logs)
 
     def callbacks_on_iteration_begin(self):
         """Call the on_iteration_begin function of the callbacks."""
         for callback in self.callbacks:
-            callback.on_iteration_end(self.logs)
+            callback.on_iteration_begin(self.logs)
 
     def callbacks_on_iteration_end(self):
         """Call the on_iteration_end function of the callbacks."""
@@ -184,12 +163,12 @@ class BaseAlgorithmClass(ABC):
     def callbacks_on_step_begin(self):
         """Call the on_step_begin function of the callbacks."""
         for callback in self.callbacks:
-            callback.on_iteration_end(self.logs)
+            callback.on_step_begin(self.logs)
 
     def callbacks_on_step_end(self):
         """Call the on_step_end function of the callbacks."""
         for callback in self.callbacks:
-            callback.on_iteration_end(self.logs)
+            callback.on_step_end(self.logs)
 
     def last_iteration(self):
         """Return members of the last iteration as a generator function."""

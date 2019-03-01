@@ -1,27 +1,49 @@
-active: True
+active: False
 
-##### Population and other
-population_size: 20
+####### Population and other
+population_size: 1000
 chromosome_size: 100
 pool: False
-pool_size: 4 # default: cpu_count()
+# default: cpu_count()
+pool_size: 4
 
-##### Stop conditions
-max_iteration: 10
+####### Stop conditions
+max_iteration: 1000
 max_fitness_eval:
 min_fitness:
-patience: 10
-stop: True
+patience:
+stop: False
 
-##### Selection
+############## Add new individuals methods
+
+####### Crossover selection
+crossover: False
 # options: random, tournament, better half
 selection_type: "random"
-num_of_new_individual:  # default: population_size // 2
-num_of_crossover:  # default: population_size // 4
+# default: population_size // 4
+num_of_crossover:
 
-#### Mutation
+####### Differential evolution
+differential_evolution: True
+# [0, 1]
+CR: 0.6
+# [0, 2]
+F: 0.8
+
+####### Invasive weed
+invasive_weed: False
+
+####### Add pure new individuals
+add_pure_new: False
+# default: population_size // 2
+num_of_new_individual:
+
+############## Modify all individulas methods
+
+####### Mutation
+mutation: True
 # options: basic, bacterial
-mutation_type: "bacterial"
+mutation_type: "basic"
 elitism: True
 mutation_random_sequence: True
 # basic
@@ -29,8 +51,8 @@ mutation_probability: 0.2
 # bacterial
 num_of_clones: 1
 
-##### Memetic
-memetic: True
+####### Memetic
+memetic: False
 lamarck_random_sequence: True
 step_size: 0.1
 number_of_steps: 1

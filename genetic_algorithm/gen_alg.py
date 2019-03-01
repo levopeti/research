@@ -2,7 +2,6 @@ import time
 from functools import partial
 
 from population import Population
-
 from base_alg_class import BaseAlgorithmClass
 
 from pathos.multiprocessing import Pool
@@ -54,87 +53,51 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         """Initialize the iteration steps."""
         self.iteration_steps = []
 
-        if self.selection_function:
-            self.iteration_steps.append(self.selection)
+        if self.config["crossover"]:
+            self.iteration_steps.append(partial(self.add_new_individuals_function, "Crossover"))
 
-        if self.num_of_new_individual:
-            self.iteration_steps.append(self.add_new_individuals)
+        if self.config["differential_evolution"]:
+            self.iteration_steps.append(partial(self.add_new_individuals_function, "Differential evolution"))
 
-        if self.mutation_function:
-            self.iteration_steps.append(partial(self.population_function, "Mutation"))
+        if self.config["invasive_weed"]:
+            self.iteration_steps.append(partial(self.add_new_individuals_function, "Invasive weed"))
 
-        if self.memetic_function:
-            self.iteration_steps.append(partial(self.population_function, "Local search"))
+        if self.config["add_pure_new"]:
+            self.iteration_steps.append(partial(self.add_new_individuals_function, "Add pure new"))
 
-    def selection(self):
-        """Add new individuals using the genetic operators (selection, crossover) supplied."""
+        if self.config["mutation"]:
+            self.iteration_steps.append(partial(self.modify_one_by_one_function, "Mutation"))
 
-        start = time.time()
+        if self.config["memetic"]:
+            self.iteration_steps.append(partial(self.modify_one_by_one_function, "Local search"))
 
-        for _ in range(self.num_of_crossover):
-            self.population.crossover(self.selection_function)
-
-        end = time.time()
-        print('Selection time: {0:.2f}s\n'.format(end - start))
-
-    def add_new_individuals(self):
-        """Add new individuals to the population."""
-        for _ in range(self.num_of_new_individual):
-            self.population.add_new_individual()
-
-        print('Add new individuals\n')
-
-    def mutation(self):
+    def add_new_individuals_function(self, name):
         """
-        Mutation on all members of the population.
-        If elitism is True the best is exception.
+        Add new individuals to the population with a given method
+        (crossover, differential evolution, invasive weed, add pure individual).
         """
         start = time.time()
-        print("Mutation:")
 
-        if self.pool:
-            print('Use process pool for mutation with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            manager = Manager()
-            lock = manager.Lock()
-            counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+        if name == "Crossover":
+            for _ in range(self.num_of_crossover):
+                self.population.crossover(self.selection_function)
 
-            def pool_mutation(inside_lock, inside_counter, inside_member):
-                inside_member.apply_on_chromosome(self.mutation_function)
+        elif name == "Differential evolution":
+            self.population.differential_evolution(**self.config)
 
-                inside_lock.acquire()
-                inside_counter.value += 1
-                pbar.update(inside_counter.value)
-                inside_lock.release()
+        elif name == "Invasive weed":
+            self.population.invasive_weed(**self.config)
 
-                return inside_member
-
-            func = functools.partial(pool_mutation, lock, counter)
-            first = 1 if self.elitism else 0
-
-            members = p.map(func, self.population[first:])
-
-            if self.elitism:
-                members.append(self.population[0])
-
-            self.population.current_population = members
-            p.terminate()
+        elif name == "Add pure new":
+            for _ in range(self.num_of_new_individual):
+                self.population.add_new_individual()
         else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
-            ignor_first = self.elitism
+            raise NameError("Bad type of function.")
 
-            for i, member in enumerate(self.population):
-                pbar.update(i + 1)
-                if not ignor_first:
-                    member.apply_on_chromosome(self.mutation_function)
-                ignor_first = False
-
-        pbar.finish()
         end = time.time()
-        print('Mutation time: {0:.2f}s\n'.format(end - start))
+        print('{0} time: {1:.2f}s\n'.format(name, end - start))
 
-    def population_function(self, name):
+    def modify_one_by_one_function(self, name):
         """Apply a function (local search, mutation) to all chromosomes."""
         start = time.time()
         print("{}:".format(name))
@@ -151,14 +114,16 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             manager = Manager()
             lock = manager.Lock()
             counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+            if self.progress_bar:
+                pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
 
             def pool_function(inside_lock, inside_counter, inside_member):
                 inside_member.apply_on_chromosome(current_function)
 
                 inside_lock.acquire()
                 inside_counter.value += 1
-                pbar.update(inside_counter.value)
+                if self.progress_bar:
+                    pbar.update(inside_counter.value)
                 inside_lock.release()
 
                 return inside_member
@@ -174,57 +139,20 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.population.current_population = members
             p.terminate()
         else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+            if self.progress_bar:
+                pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
             ignor_first = self.elitism and name == "Mutation"
 
             for i, member in enumerate(self.population):
-                pbar.update(i + 1)
+                if self.progress_bar:
+                    pbar.update(i + 1)
                 if not ignor_first:
                     member.apply_on_chromosome(current_function)
                 ignor_first = False
 
-        pbar.finish()
+        if self.progress_bar:
+            pbar.finish()
+
         end = time.time()
         print('{0} time: {1:.2f}s\n'.format(name, end - start))
 
-    def calculate_fitness(self):
-        """
-        Calculate the fitness of every member of the given population using
-        the supplied fitness_function.
-        """
-        start = time.time()
-        print("Calculate fitness:")
-
-        if self.pool:
-            print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            manager = Manager()
-            lock = manager.Lock()
-            counter = manager.Value('i', 0)
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
-
-            def pool_fitness(inside_lock, inside_counter, inside_member):
-                inside_member.calculate_fitness()
-
-                inside_lock.acquire()
-                inside_counter.value += 1
-                pbar.update(inside_counter.value)
-                inside_lock.release()
-
-                return inside_member
-
-            func = functools.partial(pool_fitness, lock, counter)
-            members = p.map(func, self.population[:], chunksize=1)
-
-            self.population.current_population = members
-            p.terminate()
-        else:
-            pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
-
-            for i, member in enumerate(self.population):
-                pbar.update(i + 1)
-                member.calculate_fitness()
-
-        pbar.finish()
-        end = time.time()
-        print('Time of calculation fitness: {0:.2f}s\n'.format(end - start))

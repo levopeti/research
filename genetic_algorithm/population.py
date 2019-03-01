@@ -114,6 +114,7 @@ class Population(PopulationBase):
 
     def add_new_individual(self):
         """Add new individual with fitness value to the current population."""
+
         individual = Chromosome(self.chromosome_size, self.fitness_function)
         individual.calculate_fitness()
         self.add_individual_to_pop(individual)
@@ -137,6 +138,38 @@ class Population(PopulationBase):
 
         self.add_individual_to_pop(child_1)
         self.add_individual_to_pop(child_2)
+
+    def differential_evolution(self, CR, F, **kwargs):
+        """Modify the population via methods of differential evolution."""
+
+        assert 0 <= CR <= 1
+        assert 0 <= F <= 2
+
+        all_indexes = range(len(self))
+
+        for current_index in all_indexes:
+            valid_indexes = set(all_indexes) - {current_index}
+            a_index, b_index, c_index = random.sample(valid_indexes, 3)
+
+            a_genes = np.array(self[a_index].genes)
+            b_genes = np.array(self[b_index].genes)
+            c_genes = np.array(self[c_index].genes)
+
+            member = self[current_index]
+            donor_genes = a_genes + F * (b_genes - c_genes)
+            member.set_test()
+            random_index = random.choice(range(len(member)))
+
+            for i in range(len(member)):
+                if i == random_index or CR > np.random.rand():
+                    member.genes_test[i] = donor_genes[i]
+
+            member.resize_invalid_genes_test()
+            member.calculate_fitness_test()
+            member.apply_test_if_better()
+
+    def invasive_weed(self, **kwargs):
+        """Add new individuals to the population via methods of invasive weed algorithm."""
 
 
 class Swarm(PopulationBase):

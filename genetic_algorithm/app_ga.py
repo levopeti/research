@@ -32,11 +32,4 @@ for key, item in config.items():
 print('\n')
 
 ga.run()
-#ff.model.base_line(500)
 
-#ff.model.sess.close()
-# best = ga.best_individual()
-# result = np.array(best[1])
-# result = result.reshape((ff.size, ff.size, 3))
-# plt.imshow(result)
-# plt.show()

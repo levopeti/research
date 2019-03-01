@@ -51,6 +51,7 @@ class BaseAlgorithmClass(ABC):
         self.best_fitness = None
         self.remote_config = False
         self.stop = False
+        self.progress_bar = True
 
         if self.pool:
             print('Use process pool with pool size {}.'.format(self.pool_size))
@@ -84,6 +85,8 @@ class BaseAlgorithmClass(ABC):
             self.init_steps()
 
             self.stop = self.config["stop"]
+            self.pool = self.config["pool"]
+            self.pool_size = self.config["pool_size"]
 
     def init_population(self):
         """

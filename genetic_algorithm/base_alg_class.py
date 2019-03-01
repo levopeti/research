@@ -42,7 +42,7 @@ class BaseAlgorithmClass(ABC):
 
         self.config = None
         self.callbacks = None
-        self.logs = None
+        self.logs = [dict()]
 
         self.iteration_steps = []
         self.iteration = 0
@@ -54,7 +54,6 @@ class BaseAlgorithmClass(ABC):
 
         if self.pool:
             print('Use process pool with pool size {}.'.format(self.pool_size))
-        # TODO: Time dict
 
     def compile(self, config, fitness_function, callbacks=None):
         """Compile the functions of the algorithm."""
@@ -100,15 +99,18 @@ class BaseAlgorithmClass(ABC):
 
         for step in self.iteration_steps:
             self.callbacks_on_step_begin()
-            step()
+            step_time, name = step()
 
             self.rank_population()
-            self.get_all_fitness_eval()
+            sum_of_eval = self.get_all_fitness_eval()
             self.print_best_values(top_n=4)
+            self.step_update_log(name, step_time, sum_of_eval)
+
             self.callbacks_on_step_end()
 
         self.cut_pop_size()
         self.set_global_best()
+
         self.callbacks_on_iteration_end()
 
     def run(self):
@@ -125,9 +127,9 @@ class BaseAlgorithmClass(ABC):
             print('*' * 36, '{}. iteration'.format(self.iteration), '*' * 36)
             self.next_iteration()
 
-            end = time.time()
+            iteration_time = time.time() - start
             print('Number of fitness evaluation so far: ', self.num_of_fitness_eval)
-            print('Iteration process time: {0:.2f}s\n\n'.format(end - start))
+            print('Iteration process time: {0:.2f}s\n\n'.format(iteration_time))
 
             if self.best_fitness > self.population.get_best_fitness():
                 self.no_improvement = 0
@@ -135,9 +137,26 @@ class BaseAlgorithmClass(ABC):
             else:
                 self.no_improvement += 1
 
+            self.iteration_update_log(iteration_time)
             self.iteration += 1
 
         self.callbacks_on_search_end()
+
+    def step_update_log(self, name, step_time, sum_of_eval):
+        """Update self.logs on step end."""
+        # Todo: impovement of best
+        self.logs[-1][name] = {"step_time": step_time, "sum_of_eval": sum_of_eval}
+
+    def iteration_update_log(self, step_time):
+        """Update self.logs on iter end."""
+        # Todo: best fitness value
+        if self.iteration == 1:
+            sum_of_eval = self.num_of_fitness_eval
+        else:
+            sum_of_eval = self.num_of_fitness_eval - self.logs[-2]["iteration_end"]["sum_of_eval"]
+
+        self.logs[-1]["iteration_end"] = {"step_time": step_time, "sum_of_eval": sum_of_eval}
+        self.logs.append(dict())
 
     def callbacks_on_search_begin(self):
         """Call the on_search_begin function of the callbacks."""
@@ -202,9 +221,13 @@ class BaseAlgorithmClass(ABC):
 
     def get_all_fitness_eval(self):
         """Count all evaluation and set they to 0."""
+        sum_of_eval = 0
         for i, member in enumerate(self.population):
-            self.num_of_fitness_eval += member.num_fitness_eval
+            sum_of_eval += member.num_fitness_eval
             member.num_fitness_eval = 0
+
+        self.num_of_fitness_eval += sum_of_eval
+        return sum_of_eval
 
     def print_best_values(self, top_n=4):
         """Print the top n pieces fitness values"""

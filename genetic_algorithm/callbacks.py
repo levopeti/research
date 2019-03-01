@@ -51,7 +51,7 @@ class LogToFile(CallbackBase):
             log_file.write(str(logs))
 
 
-class RemoteConfig(CallbackBase):
+class RemoteControl(CallbackBase):
     """Recompile the model from a given config file."""
 
     def __init__(self, config_file):

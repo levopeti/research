@@ -94,8 +94,10 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         else:
             raise NameError("Bad type of function.")
 
-        end = time.time()
-        print('{0} time: {1:.2f}s\n'.format(name, end - start))
+        step_time = time.time() - start
+        print('{0} time: {1:.2f}s\n'.format(name, step_time))
+
+        return step_time, name
 
     def modify_one_by_one_function(self, name):
         """Apply a function (local search, mutation) to all chromosomes."""
@@ -108,6 +110,10 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             current_function = self.mutation_function
         else:
             raise NameError("Bad type of function.")
+
+        if self.iteration > 1:
+            if self.logs[-2][name]["step_time"] < 4:
+                self.progress_bar = False
 
         if self.pool:
             p = Pool(self.pool_size)
@@ -153,6 +159,8 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         if self.progress_bar:
             pbar.finish()
 
-        end = time.time()
-        print('{0} time: {1:.2f}s\n'.format(name, end - start))
+        step_time = time.time() - start
+        print('{0} time: {1:.2f}s\n'.format(name, step_time))
+
+        return step_time, name
 

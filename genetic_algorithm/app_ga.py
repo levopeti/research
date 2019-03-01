@@ -1,7 +1,7 @@
 import yaml
 import time
 import fitness_functions
-from callbacks import LogToFile, RemoteConfig
+from callbacks import LogToFile, RemoteControl
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ callback_list = []
 ltf = LogToFile(file_path="/home/biot/projects/research/logs")
 callback_list.append(ltf)
 
-rc = RemoteConfig(config_file="config.yml")
+rc = RemoteControl(config_file="config.yml")
 callback_list.append(rc)
 
 ga.compile(config=config,

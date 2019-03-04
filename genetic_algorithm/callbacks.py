@@ -51,6 +51,10 @@ class LogToFile(CallbackBase):
         with open(os.path.join(self.file_path, "log"), "wb+") as log_file:
             pickle.dump(logs, log_file)
 
+    def on_search_end(self, logs):
+        with open(os.path.join(self.file_path, "log"), "wb+") as log_file:
+            pickle.dump(logs, log_file)
+
 
 class RemoteControl(CallbackBase):
     """Recompile the model from a given config file."""

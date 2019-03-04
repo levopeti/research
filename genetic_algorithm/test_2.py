@@ -51,7 +51,9 @@ def update(frame):
     log_dict, valid_keys, xdata = reload_dict()
     x_data = xdata
     y_data = log_dict[valid_keys[callback.ind % len(valid_keys)]]
-    l.set_data(x_data, y_data)
+    max_length = min(len(x_data), len(y_data))
+    l.set_data(x_data[:max_length], y_data[:max_length])
+    ax.set_title(valid_keys[callback.ind % len(valid_keys)])
     fig.gca().relim()
     fig.gca().autoscale_view()
     return l,

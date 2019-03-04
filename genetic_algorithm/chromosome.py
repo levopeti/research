@@ -170,10 +170,8 @@ class Chromosome(ChromosomeBase):
 
         for i in range(self.chromosome_size):
             if self.genes[i] > 1:
-                print("invalid ", self.genes[i])
                 self.genes[i] = 1
             elif self.genes[i] < 0:
-                print("invalid ", self.genes[i])
                 self.genes[i] = 0
 
     def resize_invalid_genes_test(self):

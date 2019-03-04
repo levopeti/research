@@ -1,6 +1,7 @@
 from abc import ABC
 import os
 import yaml
+import pickle
 
 from selections import selection_functions
 from memetics import memetic_functions
@@ -47,8 +48,8 @@ class LogToFile(CallbackBase):
             os.mkdir(self.file_path)
 
     def on_iteration_end(self, logs):
-        with open(os.path.join(self.file_path, "log.txt"), "a+") as log_file:
-            log_file.write(str(logs))
+        with open(os.path.join(self.file_path, "log"), "wb+") as log_file:
+            pickle.dump(logs, log_file)
 
 
 class RemoteControl(CallbackBase):

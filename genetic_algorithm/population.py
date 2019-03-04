@@ -14,6 +14,7 @@ class PopulationBase(ABC):
 
     def __init__(self, pop_size, chromosome_size, fitness_function):
         """Initialise the Population."""
+
         self.__current_population = []
         self.pop_size = pop_size
         self.chromosome_size = chromosome_size
@@ -86,10 +87,14 @@ class PopulationBase(ABC):
         pass
 
     def set_global_best(self):
-        """Set global best values."""
+        """Set global best individual."""
         if self.__current_population[0].fitness < self.global_best_individual.fitness:
             self.global_best_individual.fitness = self.__current_population[0].fitness
             self.global_best_individual.genes = self.__current_population[0].genes
+
+    def get_global_best(self):
+        """Get global best individual."""
+        return self.global_best_individual
 
     def set_personal_bests(self):
         pass
@@ -168,8 +173,33 @@ class Population(PopulationBase):
             member.calculate_fitness_test()
             member.apply_test_if_better()
 
-    def invasive_weed(self, **kwargs):
+    def invasive_weed(self, iteration, iter_max, e, sigma_init, sigma_fin, N_min, N_max, **kwargs):
         """Add new individuals to the population via methods of invasive weed algorithm."""
+
+        seeds = []
+        for member in self.current_population:
+            sigma = ((iter_max - iteration) / iter_max)
+            sigma = pow(sigma, e)
+            sigma = sigma * (sigma_init - sigma_fin) + sigma_fin
+
+            fitness_max = self.current_population[-1].fitness
+            fitness_min = self.current_population[0].fitness
+
+            ratio = (fitness_max - member.fitness) / (fitness_max - fitness_min)
+            N = int(N_min + (N_max - N_min) * ratio)
+
+            for _ in range(N):
+                seed = Chromosome(self.chromosome_size, self.fitness_function)
+                for i in range(self.chromosome_size):
+                    random_value = random.uniform(member.genes[i] - sigma, member.genes[i] + sigma)
+                    seed.genes[i] = random_value
+
+                seed.resize_invalid_genes()
+                seed.calculate_fitness()
+                seeds.append(seed)
+
+        for seed in seeds:
+            self.add_individual_to_pop(seed)
 
 
 class Swarm(PopulationBase):

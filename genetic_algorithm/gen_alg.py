@@ -86,7 +86,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.population.differential_evolution(**self.config)
 
         elif name == "Invasive weed":
-            self.population.invasive_weed(**self.config)
+            self.population.invasive_weed(iteration=self.iteration, **self.config)
 
         elif name == "Add pure new":
             for _ in range(self.num_of_new_individual):

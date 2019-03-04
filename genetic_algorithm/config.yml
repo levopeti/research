@@ -1,7 +1,7 @@
-active: False
+active: True
 
 ####### Population and other
-population_size: 1000
+population_size: 100
 chromosome_size: 100
 pool: False
 # default: cpu_count()
@@ -24,14 +24,21 @@ selection_type: "random"
 num_of_crossover:
 
 ####### Differential evolution
-differential_evolution: True
+differential_evolution: False
 # [0, 1]
 CR: 0.6
 # [0, 2]
 F: 0.8
 
 ####### Invasive weed
-invasive_weed: False
+invasive_weed: True
+iter_max: 1000
+e: 2
+sigma_init: 0.4
+sigma_fin: 0.1
+N_min: 16
+N_max: 32
+
 
 ####### Add pure new individuals
 add_pure_new: False
@@ -41,12 +48,12 @@ num_of_new_individual:
 ############## Modify all individulas methods
 
 ####### Mutation
-mutation: True
+mutation: False
 # options: basic, bacterial
-mutation_type: "basic"
+mutation_type: "bacterial"
 elitism: True
 mutation_random_sequence: True
-# basic
+# basic [0, 1]
 mutation_probability: 0.2
 # bacterial
 num_of_clones: 1

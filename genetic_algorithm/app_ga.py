@@ -1,21 +1,17 @@
 import yaml
-import time
-import fitness_functions
+from fitness_functions import RastriginFunction
 from callbacks import LogToFile, RemoteControl
-import os
-import numpy as np
-import matplotlib.pyplot as plt
 
 from gen_alg import GeneticAlgorithm
 
-# TODO: LogsCallback, Fitness function class
+# TODO: MethaBoard
 
 with open("config.yml", 'r') as config_file:
     config = yaml.load(config_file)
 
 ga = GeneticAlgorithm(**config)
 
-ff = fitness_functions.FitnessFunction(1)
+ff = RastriginFunction()
 
 callback_list = []
 ltf = LogToFile(file_path="/home/biot/projects/research/logs")

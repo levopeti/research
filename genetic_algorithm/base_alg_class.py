@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import time
-import yaml
 
 from selections import selection_functions
 from memetics import memetic_functions
@@ -99,12 +98,13 @@ class BaseAlgorithmClass(ABC):
 
         for step in self.iteration_steps:
             self.callbacks_on_step_begin()
+            best_fitness_before_step = self.population.get_best_fitness()
             step_time, name = step()
 
             self.rank_population()
             sum_of_eval = self.get_all_fitness_eval()
             self.print_best_values(top_n=4)
-            self.step_update_log(name, step_time, sum_of_eval)
+            self.step_update_log(name, step_time, sum_of_eval, best_fitness_before_step)
 
             self.callbacks_on_step_end()
 
@@ -121,10 +121,11 @@ class BaseAlgorithmClass(ABC):
         self.callbacks_on_search_begin()
 
         while self.no_improvement < self.patience and self.max_iteration >= self.iteration \
-                and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval\
+                and self.min_fitness < self.best_fitness and self.max_fitness_eval > self.num_of_fitness_eval \
                 and self.stop is False:
             start = time.time()
             print('*' * 36, '{}. iteration'.format(self.iteration), '*' * 36)
+            best_fitness_before_iteration = self.population.get_best_fitness()
             self.next_iteration()
 
             iteration_time = time.time() - start
@@ -137,25 +138,39 @@ class BaseAlgorithmClass(ABC):
             else:
                 self.no_improvement += 1
 
-            self.iteration_update_log(iteration_time)
+            self.iteration_update_log(iteration_time, best_fitness_before_iteration)
             self.iteration += 1
 
         self.callbacks_on_search_end()
 
-    def step_update_log(self, name, step_time, sum_of_eval):
+    def step_update_log(self, name, step_time, sum_of_eval, best_fitness_before_step):
         """Update self.logs on step end."""
-        # Todo: impovement of best
-        self.logs[-1][name] = {"step_time": step_time, "sum_of_eval": sum_of_eval}
 
-    def iteration_update_log(self, step_time):
+        best_fitness = self.population.get_best_fitness()
+        improvement = - (best_fitness - best_fitness_before_step)
+
+        self.logs[-1][name] = {"iteration": self.iteration,
+                               "step_time": step_time,
+                               "sum_of_eval": sum_of_eval,
+                               "improvement": improvement}
+
+    def iteration_update_log(self, step_time, best_fitness_before_iteration):
         """Update self.logs on iter end."""
-        # Todo: best fitness value
+
+        best_fitness = self.population.get_best_fitness()
+        improvement = - (best_fitness - best_fitness_before_iteration)
+
         if self.iteration == 1:
             sum_of_eval = self.num_of_fitness_eval
         else:
             sum_of_eval = self.num_of_fitness_eval - self.logs[-2]["iteration_end"]["sum_of_eval"]
 
-        self.logs[-1]["iteration_end"] = {"step_time": step_time, "sum_of_eval": sum_of_eval}
+        self.logs[-1]["iteration_end"] = {"iteration": self.iteration,
+                                          "step_time": step_time,
+                                          "sum_of_eval": sum_of_eval,
+                                          "best_fitness": best_fitness,
+                                          "global_best_fitness": self.population.get_global_best().fitness,
+                                          "improvement": improvement}
         self.logs.append(dict())
 
     def callbacks_on_search_begin(self):

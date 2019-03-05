@@ -1,8 +1,8 @@
 import yaml
-from fitness_functions import RastriginFunction
-from callbacks import LogToFile, RemoteControl
+from elements.fitness_functions import RastriginFunction
+from elements.callbacks import LogToFile, RemoteControl
 
-from gen_alg import GeneticAlgorithm
+from algorithms.gen_alg import GeneticAlgorithm
 
 # TODO: MethaBoard
 
@@ -32,3 +32,4 @@ for key, item in config.items():
 print('\n')
 
 ga.run()
+

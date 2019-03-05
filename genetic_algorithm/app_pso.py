@@ -1,12 +1,13 @@
 import yaml
-import fitness_functions
-import selections
-import mutations
 import os
+
+import elements.fitness_functions
+import elements.selections
+import elements.mutations
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pso_alg import ParticleSwarm
+from algorithms.pso_alg import ParticleSwarm
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 

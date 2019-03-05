@@ -1,9 +1,10 @@
-from chromosome import Chromosome, Particle
 from operator import attrgetter
 import random
 import numpy as np
 
 from abc import ABC, abstractmethod
+
+from elements.chromosome import Chromosome, Particle
 
 
 class PopulationBase(ABC):

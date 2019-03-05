@@ -2,7 +2,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from population import Swarm
+from elements.population import Swarm
 
 from pathos.multiprocessing import Pool
 from multiprocessing import cpu_count

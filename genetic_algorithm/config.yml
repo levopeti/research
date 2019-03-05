@@ -8,11 +8,11 @@ pool: False
 pool_size: 4
 
 ####### Stop conditions
-max_iteration: 1000
+max_iteration: 8000
 max_fitness_eval:
 min_fitness:
 patience:
-stop: False
+stop: True
 
 ############## Add new individuals methods
 
@@ -34,21 +34,21 @@ F: 0.8
 invasive_weed: True
 iter_max: 1000
 e: 2
-sigma_init: 0.4
-sigma_fin: 0.1
+sigma_init: 0.2
+sigma_fin: 0.05
 N_min: 16
 N_max: 32
 
 
 ####### Add pure new individuals
-add_pure_new: False
+add_pure_new: True
 # default: population_size // 2
-num_of_new_individual:
+num_of_new_individual: 10
 
 ############## Modify all individulas methods
 
 ####### Mutation
-mutation: False
+mutation: True
 # options: basic, bacterial
 mutation_type: "bacterial"
 elitism: True

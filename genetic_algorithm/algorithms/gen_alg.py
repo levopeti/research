@@ -1,12 +1,12 @@
 import time
 from functools import partial
 
-from population import Population
-from base_alg_class import BaseAlgorithmClass
-
 from pathos.multiprocessing import Pool
 from multiprocessing import cpu_count, Manager
 from progressbar import ProgressBar, Bar, Percentage, ETA
+
+from elements.population import Population
+from algorithms.base_alg_class import BaseAlgorithmClass
 
 
 class GeneticAlgorithm(BaseAlgorithmClass):
@@ -102,7 +102,8 @@ class GeneticAlgorithm(BaseAlgorithmClass):
     def modify_one_by_one_function(self, name):
         """Apply a function (local search, mutation) to all chromosomes."""
         start = time.time()
-        print("{}:".format(name))
+        if self.progress_bar:
+            print("{}:".format(name))
 
         if name == "Local search":
             current_function = self.memetic_function
@@ -112,8 +113,9 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             raise NameError("Bad type of function.")
 
         if self.iteration > 1:
-            if self.logs[-2][name]["step_time"] < 4:
-                self.progress_bar = False
+            if name in self.logs[-2].keys():
+                if self.logs[-2][name]["step_time"] < 4:
+                    self.progress_bar = False
 
         if self.pool:
             p = Pool(self.pool_size)

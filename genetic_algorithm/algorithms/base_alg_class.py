@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 import time
 
-from selections import selection_functions
-from memetics import memetic_functions
-from mutations import mutation_functions
+from elements.selections import selection_functions
+from elements.memetics import memetic_functions
+from elements.mutations import mutation_functions
 
 
 class BaseAlgorithmClass(ABC):

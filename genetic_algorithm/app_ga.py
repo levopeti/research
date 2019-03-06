@@ -17,7 +17,7 @@ callback_list = []
 ltf = LogToFile(file_path="/home/biot/projects/research/logs")
 callback_list.append(ltf)
 
-rc = RemoteControl(config_file="config.yml")
+rc = RemoteControl(config_file="config_tmp.yml")
 callback_list.append(rc)
 
 ga.compile(config=config,

@@ -2,6 +2,7 @@ from abc import ABC
 import os
 import yaml
 import pickle
+from multiprocessing import cpu_count
 
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
@@ -78,7 +79,10 @@ class RemoteControl(CallbackBase):
 
             self.model.stop = self.model.config["stop"]
             self.model.pool = self.model.config["pool"]
-            self.model.pool_size = self.model.config["pool_size"]
+            self.model.pool_size = cpu_count() if self.model.config["pool_size"] is None else self.model.config["pool_size"]
+            self.model.elitism = False if self.model.config["elitism"] is None else self.model.config["elitism"]
+            self.model.num_of_new_individual = self.model.population_size // 2 if self.model.config["num_of_new_individual"] is None else self.model.config["num_of_new_individual"]
+            self.model.num_of_crossover = self.model.population_size // 4 if self.model.config["num_of_crossover"] is None else self.model.config["num_of_crossover"]
 
 
 

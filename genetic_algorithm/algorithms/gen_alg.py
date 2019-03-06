@@ -81,6 +81,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         if name == "Crossover":
             for _ in range(self.num_of_crossover):
                 self.population.crossover(self.selection_function)
+                name = name[:9] + ' ' + self.config["selection_type"]
 
         elif name == "Differential evolution":
             self.population.differential_evolution(**self.config)
@@ -109,6 +110,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             current_function = self.memetic_function
         elif name == "Mutation":
             current_function = self.mutation_function
+            name = name[:8] + ' ' + self.config["mutation_type"]
         else:
             raise NameError("Bad type of function.")
 
@@ -116,6 +118,8 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             if name in self.logs[-2].keys():
                 if self.logs[-2][name]["step_time"] < 4:
                     self.progress_bar = False
+                else:
+                    self.progress_bar = True
 
         if self.pool:
             p = Pool(self.pool_size)
@@ -124,13 +128,15 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             counter = manager.Value('i', 0)
             if self.progress_bar:
                 pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+            else:
+                pbar = None
 
             def pool_function(inside_lock, inside_counter, inside_member):
                 inside_member.apply_on_chromosome(current_function)
 
                 inside_lock.acquire()
                 inside_counter.value += 1
-                if self.progress_bar:
+                if pbar:
                     pbar.update(inside_counter.value)
                 inside_lock.release()
 

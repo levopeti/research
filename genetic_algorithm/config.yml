@@ -12,7 +12,7 @@ max_iteration: 8000
 max_fitness_eval:
 min_fitness:
 patience:
-stop: True
+stop: False
 
 ############## Add new individuals methods
 
@@ -31,7 +31,7 @@ CR: 0.6
 F: 0.8
 
 ####### Invasive weed
-invasive_weed: True
+invasive_weed: False
 iter_max: 1000
 e: 2
 sigma_init: 0.2
@@ -41,18 +41,18 @@ N_max: 32
 
 
 ####### Add pure new individuals
-add_pure_new: True
+add_pure_new: False
 # default: population_size // 2
 num_of_new_individual: 10
 
-############## Modify all individulas methods
+############## Modify all individuals methods
 
 ####### Mutation
-mutation: True
+mutation: False
 # options: basic, bacterial
-mutation_type: "bacterial"
-elitism: True
-mutation_random_sequence: True
+mutation_type: "basic"
+elitism: False
+mutation_random_sequence: False
 # basic [0, 1]
 mutation_probability: 0.2
 # bacterial
@@ -60,6 +60,6 @@ num_of_clones: 1
 
 ####### Memetic
 memetic: False
-lamarck_random_sequence: True
+lamarck_random_sequence: False
 step_size: 0.1
 number_of_steps: 1

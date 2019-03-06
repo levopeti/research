@@ -4,7 +4,7 @@ from elements.callbacks import LogToFile, RemoteControl
 
 from algorithms.gen_alg import GeneticAlgorithm
 
-# TODO: MethaBoard
+# TODO: Result log
 
 with open("config.yml", 'r') as config_file:
     config = yaml.load(config_file)
@@ -32,4 +32,4 @@ for key, item in config.items():
 print('\n')
 
 ga.run()
-
+print(ga.best_individual())

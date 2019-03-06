@@ -212,7 +212,7 @@ class BaseAlgorithmClass(ABC):
         """Return the individual with the best fitness in the current generation."""
         best_genes = self.population.get_best_genes()
         best_fitness = self.population.get_best_fitness()
-        return best_genes, best_fitness
+        return {"best individual": (best_genes, best_fitness), "global best individual": (self.population.get_global_best().genes, self.population.get_global_best().fitness)}
 
     def rank_population(self):
         """Sort the population by fitness ascending order."""

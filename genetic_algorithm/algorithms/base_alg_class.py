@@ -250,3 +250,6 @@ class BaseAlgorithmClass(ABC):
         for i in range(top_n if self.population_size >= top_n else self.population_size):
             print('{0:.3f}'.format(self.population[i].fitness))
         print('\n')
+
+
+

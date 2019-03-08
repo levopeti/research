@@ -1,7 +1,10 @@
 from graphics import GraphWin, Entry, Point, Text, Rectangle
 import yaml
+from threading import Thread
+import methaboard
 
 config = None
+mb = None
 
 
 def load_logs(config_file):
@@ -64,16 +67,17 @@ def make_text(x, y, size, text):
     text = Text(Point(x, y), text)
     text.setSize(size)
     text.draw(win)
+    return text
 
 
-def make_text_with_input(x, y, col, size, text, init_value=""):
+def make_text_with_input(x, y, col, size, text, init_value="", width=10):
     begin = 0
     if col == 1:
         begin = 220
     elif col == 2:
         begin = 620
-    make_text(x, y, size, text)
-    entry = Entry(Point(begin, y), 10)
+    text = make_text(x, y, size, text)
+    entry = Entry(Point(begin, y), width)
     entry.setFill("white")
     entry.setText(init_value if init_value != "None" else "")
     entry.draw(win)
@@ -92,7 +96,7 @@ def inside(point, button):
 
 def refresh_config():
     for entry in entries:
-        name = entry[1]
+        name = entry[1].getText()
         if name == "num of new indiv.:":
             name = "num_of_new_individual"
         else:
@@ -105,6 +109,22 @@ def refresh_config():
             config[name] = None if entry[0].getText() == '' else int(entry[0].getText())
 
     write_logs("/home/biot/projects/research/genetic_algorithm/config_tmp.yml")
+
+
+def run_methaboard():
+    global mb
+
+    if mb is None:
+        mb = methaboard.MethaBoard()
+        path = methaboard_entry[0].getText()
+        thread = Thread(target=mb.run, args=(path, ))
+        thread.setDaemon(False)
+        thread.start()
+
+        methaboard_button[0].undraw()
+        methaboard_button[1].undraw()
+        methaboard_entry[0].undraw()
+        methaboard_entry[1].undraw()
 
 
 load_logs("/home/biot/projects/research/genetic_algorithm/config.yml")
@@ -157,7 +177,7 @@ N_min_entry = make_text_with_input(42, 738, 1, 14, "N min:", str(config["N_min"]
 N_max_entry = make_text_with_input(45, 768, 1, 14, "N max:", str(config["N_max"]))
 entries += [iter_max_entry, e_entry, sigma_init_entry, sigma_fin_entry, N_min_entry, N_max_entry]
 
-add_new_button = button((12, 822), (132, 794), "add pure new:", init_color("add_pure_new"))
+add_new_button = button((12, 822), (132, 794), "add pure new", init_color("add_pure_new"))
 num_of_new_entry = make_text_with_input(90, 840, 1, 14, "num of new indiv.:", str(config["num_of_new_individual"]))
 
 make_text(545, 350, 16, "Modify all individuals methods")
@@ -176,6 +196,9 @@ step_size_entry = make_text_with_input(442, 666, 2, 14, "step size:", str(config
 number_of_steps_entry = make_text_with_input(471, 696, 2, 14, "number of steps:", str(config["number_of_steps"]))
 entries += [step_size_entry, number_of_steps_entry]
 
+# methaboard
+methaboard_button = button((403, 822), (520, 794), "run methaboard", "yellow")
+methaboard_entry = make_text_with_input(438, 840, 2, 14, "log path:", "/home/biot/projects/research/logs/log", width=30)
 
 while True:
     if config["active"]:
@@ -187,6 +210,7 @@ while True:
         push_button("stop", stop_button)
         continue
     if inside(clickPoint, exit_button):
+        del mb
         win.close()
         exit()
     if inside(clickPoint, active_button):
@@ -228,5 +252,9 @@ while True:
         continue
     if inside(clickPoint, mutation_type_button):
         modify_button(mutation_type_button)
+        continue
+
+    if inside(clickPoint, methaboard_button):
+        run_methaboard()
         continue
 

@@ -1,12 +1,12 @@
 import yaml
 from elements.fitness_functions import RastriginFunction
-from elements.callbacks import LogToFile, RemoteControl
+from elements.callbacks import LogToFile, RemoteControl, SaveResult
 
 from algorithms.gen_alg import GeneticAlgorithm
 
 # TODO: Result log
 
-with open("config.yml", 'r') as config_file:
+with open("config_tmp.yml", 'r') as config_file:
     config = yaml.load(config_file)
 
 ga = GeneticAlgorithm(**config)
@@ -20,6 +20,9 @@ callback_list.append(ltf)
 rc = RemoteControl(config_file="config_tmp.yml")
 callback_list.append(rc)
 
+sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt")
+callback_list.append(sr)
+
 ga.compile(config=config,
            fitness_function=ff,
            callbacks=callback_list)
@@ -32,4 +35,4 @@ for key, item in config.items():
 print('\n')
 
 ga.run()
-print(ga.best_individual())
+

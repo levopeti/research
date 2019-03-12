@@ -7,6 +7,7 @@ from multiprocessing import cpu_count
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
 from elements.mutations import mutation_functions
+from elements.particle_swarm_iteration import swarm_iteration_functions
 
 
 class CallbackBase(ABC):
@@ -75,14 +76,20 @@ class RemoteControl(CallbackBase):
             self.model.selection_function = selection_functions(**self.model.config)
             self.model.mutation_function = mutation_functions(**self.model.config)
             self.model.memetic_function = memetic_functions(**self.model.config)
+            self.model.swarm_iteration_function = swarm_iteration_functions(**self.model.config)
             self.model.init_steps()
 
             self.model.stop = self.model.config["stop"]
             self.model.pool = self.model.config["pool"]
             self.model.pool_size = cpu_count() if self.model.config["pool_size"] is None else self.model.config["pool_size"]
-            self.model.elitism = False if self.model.config["elitism"] is None else self.model.config["elitism"]
-            self.model.num_of_new_individual = self.model.population_size // 2 if self.model.config["num_of_new_individual"] is None else self.model.config["num_of_new_individual"]
-            self.model.num_of_crossover = self.model.population_size // 4 if self.model.config["num_of_crossover"] is None else self.model.config["num_of_crossover"]
+            variables = list(self.model.__dict__.keys())
+
+            if "elitism" in variables:
+                self.model.elitism = False if self.model.config["elitism"] is None else self.model.config["elitism"]
+            if "num_of_new_individual" in variables:
+                self.model.num_of_new_individual = self.model.population_size // 2 if self.model.config["num_of_new_individual"] is None else self.model.config["num_of_new_individual"]
+            if "num_of_crossover" in variables:
+                self.model.num_of_crossover = self.model.population_size // 4 if self.model.config["num_of_crossover"] is None else self.model.config["num_of_crossover"]
 
             self.model.patience = float("inf") if self.model.config["patience"] is None else self.model.config["patience"]
             self.model.max_iteration = float("inf") if self.model.config["max_iteration"] is None else self.model.config["max_iteration"]

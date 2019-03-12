@@ -91,7 +91,7 @@ class PopulationBase(ABC):
         """Set global best individual."""
         if self.__current_population[0].fitness < self.global_best_individual.fitness:
             self.global_best_individual.fitness = self.__current_population[0].fitness
-            self.global_best_individual.genes = self.__current_population[0].genes
+            self.global_best_individual.genes = self.__current_population[0].genes.copy()
 
     def get_global_best(self):
         """Get global best individual."""
@@ -209,30 +209,33 @@ class Swarm(PopulationBase):
     def __init__(self, pop_size, chromosome_size, fitness_function):
         super().__init__(pop_size, chromosome_size, fitness_function)
 
+        self.global_best_individual = Particle(self.chromosome_size, self.fitness_function)
+
     def create_initial_population(self):
         """Create members of the first population randomly."""
 
         for _ in range(self.pop_size):
             individual = Particle(self.chromosome_size, self.fitness_function)
+            individual.calculate_fitness()
             self.add_individual_to_pop(individual)
 
     def add_new_individual(self):
-        """Add new individual to the current population."""
+        """Add new individual with fitness value to the current population."""
+
         individual = Particle(self.chromosome_size, self.fitness_function)
+        individual.calculate_fitness()
         self.add_individual_to_pop(individual)
 
-    def init_global_best(self):
-        self.global_best_individual = copy.deepcopy(self.__current_population[0])
+    def init_global_and_personal_best(self):
+        self.global_best_individual.fitness = self.current_population[0].fitness
+        self.global_best_individual.genes = self.current_population[0].genes.copy()
 
-    def set_global_best(self):
-        if self.__current_population[0].fitness < self.global_best_individual.fitness:
-            self.global_best_individual = copy.deepcopy(self.__current_population[0])
-
-        for particle in self.__current_population:
-            particle.set_global_best(self.global_best_individual)
+        for particle in self.current_population:
+            particle.personal_best = particle.genes
+            particle.personal_best_fitness = particle.fitness
 
     def set_personal_bests(self):
-        for particle in self.__current_population:
+        for particle in self.current_population:
             particle.set_personal_best()
 
 

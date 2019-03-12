@@ -1,237 +1,122 @@
 import time
-import matplotlib.pyplot as plt
-import numpy as np
+from functools import partial
 
 from elements.population import Swarm
+from algorithms.base_alg_class import BaseAlgorithmClass
 
 from pathos.multiprocessing import Pool
-from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor
-import threading
+from multiprocessing import cpu_count, Manager
+from progressbar import ProgressBar, Bar, Percentage, ETA
 
 
-class ParticleSwarm(object):
+class ParticleSwarm(BaseAlgorithmClass):
     """
     Particle Swarm class.
-    This is the main class that controls the functionality of the Particle Swarm.
+    This is the main class that controls the functionality of the Particle Swarm Algorithm.
     """
 
     def __init__(self,
                  population_size=50,
                  chromosome_size=10,
-                 iterations=100,
+                 max_iteration=None,
+                 max_fitness_eval=None,
+                 min_fitness=None,
                  patience=None,
-                 lamarck=False,
                  pool_size=cpu_count(),
                  pool=False,
-                 thread=False):
+                 num_of_new_individual=None,
+                 num_of_crossover=None,
+                 elitism=False,
+                 *args,
+                 **kwargs):
+        super().__init__(population_size=population_size,
+                         chromosome_size=chromosome_size,
+                         max_iteration=max_iteration,
+                         max_fitness_eval=max_fitness_eval,
+                         min_fitness=min_fitness,
+                         patience=patience,
+                         pool_size=pool_size,
+                         pool=pool)
 
-        self.patience = patience
-        self.population_size = population_size
-        self.chromosome_size = chromosome_size
-        self.iterations = iterations
-        self.lamarck = lamarck
-        self.pool_size = pool_size
-        self.pool = pool
-        self.thread = thread
-
-        self.population = None
-
-        self.fitness_function = None
-        self.memetic_function = None
-
-        if self.pool:
-            self.thread = False
-
-    def create_first_generation(self):
+    def create_population(self):
         """
         Create the first population, calculate the population's fitness and
         rank the population by fitness according to the order specified.
         """
         self.population = Swarm(self.population_size, self.chromosome_size, self.fitness_function)
-        self.calculate_population_fitness()
-        self.population.rank_population()
-        self.population.init_global_best()
-        self.population.set_global_best()
-        self.population.set_personal_bests()
 
-    def create_next_generation(self):
-        """Create subsequent populations, calculate the population fitness and
-        rank the population by fitness in the order specified.
-        """
+    def init_steps(self):
+        """Initialize the iteration steps."""
+        self.iteration_steps = []
 
-        self.iterate()
-        if self.lamarck:
-            self.local_search()
-        self.calculate_population_fitness()
-        self.population.rank_population()
-        self.population.set_global_best()
-        self.population.set_personal_bests()
+        if self.config["swarm_iteration"]:
+            self.iteration_steps.append(partial(self.modify_one_by_one_function, "Swarm iteration"))
 
-    def run(self):
-        """Run (solve) the Genetic Algorithm."""
-        self.create_first_generation()
+        if self.config["memetic"]:
+            self.iteration_steps.append(partial(self.modify_one_by_one_function, "Local search"))
 
-        if self.patience:
-            no_improvement = 0
-            iterations = 1
-            best_fitness = self.population.get_the_best().fitness
-
-            while no_improvement < self.patience:
-                start = time.time()
-                print('{}. iteration'.format(iterations))
-                self.create_next_generation()
-                print('best fitness values: ', [self.population.get_all()[j].fitness for j in range(4 if self.population_size >= 4 else self.population_size)])
-                # print('best member: ', max(self.population.get_the_best().genes), min(self.population.get_the_best().genes))
-
-                loss, acc = self.fitness_function(self.population.get_the_best(), acc=True)
-                print("Accurate: {0:.2f}%\t".format(acc * 100), "Loss: {0:.2f}\t".format(loss))
-                loss, acc = self.fitness_function(self.population.global_best, acc=True)
-                print("Accurate: {0:.2f}%\t".format(acc * 100), "Loss: {0:.2f}\t".format(loss))
-
-                end = time.time()
-                print('Process time: {0:.2f}s\n'.format(end - start))
-
-                # print("max of V: {0:.3f}".format(np.amax(self.population.current_generation[0].velocity)))
-                # print("min of V: {0:.3f}".format(np.amin(self.population.current_generation[0].velocity)))
-                # print("min of V: {0:.3f}\n".format(np.average(self.population.current_generation[0].velocity)))
-                #
-                # print("max of G: {0:.3f}".format(np.amax(self.population.current_generation[0].genes)))
-                # print("min of G: {0:.3f}\n".format(np.amin(self.population.current_generation[0].genes)))
-                # print("avg of G: {0:.3f}\n".format(np.average(self.population.current_generation[0].genes)))
-                #
-                # print("avg of dG: {0:.3f}".format(np.average(self.population.current_generation[0].genes - self.population.current_generation[100].genes)))
-                # print("min of dG {0:.3f}".format(np.amin(self.population.current_generation[0].genes - self.population.current_generation[100].genes)))
-                # print("max of dG: {0:.3f}\n".format(np.amax(self.population.current_generation[0].genes - self.population.current_generation[100].genes)))
-                #
-                # print(self.population.current_generation[100].genes[:10])
-                # print(self.population.current_generation[0].genes[:10])
-                # input()
-
-                # if iterations % 300 == 0:
-                #     # result = np.array(self.population.get_the_best().genes)
-                #     # result = result.reshape((50, 50, 3))
-                #     # plt.imshow(result)
-                #     # plt.show()
-                #
-                #     result = np.array(self.population.global_best.genes)
-                #     result = result.reshape((50, 50, 3))
-                #     plt.imshow(result)
-                #     plt.show()
-
-                    # print("max of W: {0:.2f}".format(np.amax(self.population.get_the_best().velocity)))
-                    # print("min of W: {0:.2f}\n".format(np.amin(self.population.get_the_best().velocity)))
-                    # input()
-
-                if best_fitness > self.population.get_the_best().fitness:
-                    no_improvement = 0
-                    best_fitness = self.population.get_the_best().fitness
-
-                no_improvement += 1
-                iterations += 1
-
-        else:
-            for i in range(0, self.iterations):
-                start = time.time()
-                print('{}. iterations'.format(i + 1))
-                self.create_next_generation()
-                print('best fitness values: ', [self.population.get_all()[j].fitness for j in range(10 if self.population_size >= 10 else self.population_size)])
-                end = time.time()
-                print('Process time: {0:.2f}s\n'.format(end - start))
-
-    def best_individual(self):
-        """Return the individual with the best fitness in the current generation."""
-        best = self.population.get_the_best()
-        return best.fitness, best.genes
-
-    def last_generation(self):
-        """Return members of the last generation as a generator function."""
-        return ((member.fitness, member.genes) for member in self.population.get_all())
-
-    def local_search(self):
-        """Gradient search based on memetic evolution."""
+    def modify_one_by_one_function(self, name):
+        """Apply a function (local search, mutation) to all chromosomes."""
         start = time.time()
+        if self.progress_bar:
+            print("{}:".format(name))
 
-        if self.pool: #self.pool:
-            print('Use process pool for local search with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            members = p.map(self.memetic_function, self.population.get_all())
-
-            for i, member in enumerate(members):
-                self.population.set_genes(member, i)
-
-            p.terminate()
-        elif self.thread:
-            print('Use thread pool for local search with pool size {}.'.format(self.pool_size))
-            with ThreadPoolExecutor(max_workers=self.pool_size) as p:
-                members = p.map(self.memetic_function, self.population.get_all())
-
-                for i, member in enumerate(members):
-                    self.population.set_genes(member, i)
+        if name == "Swarm iteration":
+            current_function = partial(self.swarm_iteration_function, self.population.global_best_individual.genes)
+            name = name[:12] + ' ' + self.config["iteration_type"]
+        elif name == "Mutation":
+            current_function = self.mutation_function
+            name = name[:8] + ' ' + self.config["mutation_type"]
         else:
-            for i, member in enumerate(self.population.get_all()):
-                member = self.memetic_function(member)
-                self.population.set_genes(member, i)
+            raise NameError("Bad type of function.")
 
-        end = time.time()
-        print('Memetic for weights time: {0:.2f}s'.format(end - start))
+        if self.iteration > 1:
+            if name in self.logs[-2].keys():
+                if self.logs[-2][name]["step_time"] < 4:
+                    self.progress_bar = False
+                else:
+                    self.progress_bar = True
 
-    def calculate_population_fitness(self):
-        """Calculate the fitness of every member of the given population using
-        the supplied fitness_function.
-        """
-        start = time.time()
-
-        if 0: #self.pool:
-            print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
+        if self.pool:
             p = Pool(self.pool_size)
-            fitness_values = p.map(self.fitness_function, self.population.get_all())
+            manager = Manager()
+            lock = manager.Lock()
+            counter = manager.Value('i', 0)
+            if self.progress_bar:
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], term_width=60, maxval=len(self.population)).start()
+            else:
+                pbar = None
 
-            for i, value in enumerate(fitness_values):
-                self.population.set_fitness(value, i)
+            def pool_function(inside_lock, inside_counter, inside_member):
+                inside_member.apply_on_chromosome(current_function)
 
+                inside_lock.acquire()
+                inside_counter.value += 1
+                if pbar:
+                    pbar.update(inside_counter.value)
+                inside_lock.release()
+
+                return inside_member
+
+            func = partial(pool_function, lock, counter)
+            members = p.map(func, self.population[:])
+
+            self.population.current_population = members
             p.terminate()
-        elif 0: #self.thread:
-            print('Use thread pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            with ThreadPoolExecutor(max_workers=self.pool_size) as p:
-                fitness_values = p.map(self.fitness_function, self.population.get_all())
-
-                for i, value in enumerate(fitness_values):
-                    self.population.set_fitness(value, i)
         else:
-            for i, member in enumerate(self.population.get_all()):
-                fitness_values = self.fitness_function(member)
-                self.population.set_fitness(fitness_values, i)
+            if self.progress_bar:
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], term_width=60, maxval=len(self.population)).start()
 
-        end = time.time()
-        print('Calculate pop fitness time: {0:.2f}s'.format(end - start))
+            for i, member in enumerate(self.population):
+                if self.progress_bar:
+                    pbar.update(i + 1)
+                member.apply_on_chromosome(current_function)
 
-    def iterate(self):
-        """One iteration on the swarm."""
-        start = time.time()
+        if self.progress_bar:
+            pbar.finish()
 
-        if 0:  # self.pool:
-            print('Use process pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            p = Pool(self.pool_size)
-            fitness_values = p.map(self.fitness_function, self.population.get_all())
+        step_time = time.time() - start
+        print('{0} time: {1:.2f}s\n'.format(name, step_time))
 
-            for i, value in enumerate(fitness_values):
-                self.population.set_fitness(value, i)
-
-            p.terminate()
-        elif 0:  # self.thread:
-            print('Use thread pool for calculate fitness with pool size {}.'.format(self.pool_size))
-            with ThreadPoolExecutor(max_workers=self.pool_size) as p:
-                fitness_values = p.map(self.fitness_function, self.population.get_all())
-
-                for i, value in enumerate(fitness_values):
-                    self.population.set_fitness(value, i)
-        else:
-            for member in self.population.get_all():
-                member.update_velocity()
-                member.iterate()
-                # member.sso_iterate()
-
-        end = time.time()
-        print('Calculate pop iteration time: {0:.2f}s'.format(end - start))
+        return step_time, name
 

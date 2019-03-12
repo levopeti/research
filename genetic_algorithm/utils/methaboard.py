@@ -100,7 +100,7 @@ class MethaBoard(object):
             return lines
 
         callback = Index()
-        animation = FuncAnimation(fig, update, frames=self.reload_dict(file_path), blit=False, interval=500)
+        animation = FuncAnimation(fig, update, frames=self.reload_dict(file_path), blit=False, interval=800)
 
         axprev = plt.axes([0.7, 0.01, 0.1, 0.03])
         axnext = plt.axes([0.81, 0.01, 0.1, 0.03])

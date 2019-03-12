@@ -4,8 +4,6 @@ from elements.callbacks import LogToFile, RemoteControl, SaveResult
 
 from algorithms.gen_alg import GeneticAlgorithm
 
-# TODO: Result log
-
 with open("config_tmp.yml", 'r') as config_file:
     config = yaml.load(config_file)
 

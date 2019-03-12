@@ -4,6 +4,7 @@ import time
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
 from elements.mutations import mutation_functions
+from elements.particle_swarm_iteration import swarm_iteration_functions
 
 
 class BaseAlgorithmClass(ABC):
@@ -37,6 +38,7 @@ class BaseAlgorithmClass(ABC):
         self.fitness_function = None
         self.selection_function = None
         self.mutation_function = None
+        self.swarm_iteration_function = None
         self.memetic_function = None
 
         self.config = None
@@ -64,6 +66,7 @@ class BaseAlgorithmClass(ABC):
 
         self.selection_function = selection_functions(**self.config)
         self.mutation_function = mutation_functions(**self.config)
+        self.swarm_iteration_function = swarm_iteration_functions(**self.config)
         self.memetic_function = memetic_functions(**self.config)
 
         self.init_population()
@@ -76,9 +79,7 @@ class BaseAlgorithmClass(ABC):
         """
         self.create_population()
         self.population.rank_population()
-        self.population.init_global_best()
-        self.population.set_global_best()
-        self.population.set_personal_bests()
+        self.population.init_global_and_personal_best()
         self.init_steps()
 
     @abstractmethod
@@ -109,6 +110,7 @@ class BaseAlgorithmClass(ABC):
             self.callbacks_on_step_end()
 
         self.cut_pop_size()
+        self.set_personal_bests()
         self.set_global_best()
 
         self.callbacks_on_iteration_end()
@@ -221,6 +223,10 @@ class BaseAlgorithmClass(ABC):
     def set_global_best(self):
         """Set global best values."""
         self.population.set_global_best()
+
+    def set_personal_bests(self):
+        """Set personal bests of the parcticles."""
+        self.population.set_personal_bests()
 
     def cut_pop_size(self):
         """Resize the current population to pop size."""

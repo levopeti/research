@@ -1,4 +1,4 @@
-active: True
+active: False
 
 ####### Population and other
 population_size: 100
@@ -17,7 +17,7 @@ stop: False
 ############## Add new individuals methods
 
 ####### Crossover selection
-crossover: False
+crossover: True
 # options: random, tournament, better half
 selection_type: "random"
 # default: population_size // 4
@@ -48,9 +48,9 @@ num_of_new_individual: 10
 ############## Modify all individuals methods
 
 ####### Mutation
-mutation: False
+mutation: True
 # options: basic, bacterial
-mutation_type: "basic"
+mutation_type: "bacterial"
 elitism: False
 mutation_random_sequence: False
 # basic [0, 1]
@@ -63,3 +63,19 @@ memetic: False
 lamarck_random_sequence: False
 step_size: 0.1
 number_of_steps: 1
+
+
+############## Swarm optimization
+swarm_iteration: True
+# options: pso, sso
+iteration_type: "pso"
+# pso
+norm: 0.1
+inertia: 1 
+phi_p: 1
+phi_g: 1
+# sso
+c_w: 0.2
+c_p: 0.4
+c_g: 0.8
+

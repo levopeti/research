@@ -127,7 +127,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             lock = manager.Lock()
             counter = manager.Value('i', 0)
             if self.progress_bar:
-                pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], term_width=60, maxval=len(self.population)).start()
             else:
                 pbar = None
 
@@ -154,7 +154,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             p.terminate()
         else:
             if self.progress_bar:
-                pbar = ProgressBar(widgets=[Percentage(), Bar(dec_width=60), ETA()], maxval=len(self.population)).start()
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], term_width=60, maxval=len(self.population)).start()
             ignor_first = self.elitism and name == "Mutation"
 
             for i, member in enumerate(self.population):

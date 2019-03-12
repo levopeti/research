@@ -1,43 +1,35 @@
 import yaml
-import os
-
-import elements.fitness_functions
-import elements.selections
-import elements.mutations
-import numpy as np
-import matplotlib.pyplot as plt
+from elements.fitness_functions import RastriginFunction
+from elements.callbacks import LogToFile, RemoteControl, SaveResult
 
 from algorithms.pso_alg import ParticleSwarm
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+with open("config_tmp.yml", 'r') as config_file:
+    config = yaml.load(config_file)
 
-config = yaml.load(open("config.yml", 'r'))
-mutation_probability = config["mutation_probability"]
+ps = ParticleSwarm(**config)
 
-pso = ParticleSwarm(population_size=config["population_size"],
-                    iterations=config["generations"],
-                    chromosome_size=config["chromosome_size"],
-                    patience=config["patience"],
-                    lamarck=config["lamarck"],
-                    pool_size=config["pool_size"],
-                    pool=config["pool"],
-                    thread=config["thread"])
+ff = RastriginFunction()
 
-ff = fitness_functions.FitnessFunction(5)
+callback_list = []
+ltf = LogToFile(file_path="/home/biot/projects/research/logs")
+callback_list.append(ltf)
 
-pso.fitness_function = ff.calculate
-pso.memetic_function = ff.train_steps(number_of_steps=1)
+rc = RemoteControl(config_file="config_tmp.yml")
+callback_list.append(rc)
 
-print('Run genetic algorithm\n')
+sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt")
+callback_list.append(sr)
 
-print('Population size: {}\nChromosome size: {}\nLamarck: {}\nPool: {}\nThread: {}\n'.
-      format(config["population_size"], config["chromosome_size"], config["lamarck"], pso.pool, pso.thread))
+ps.compile(config=config,
+           fitness_function=ff,
+           callbacks=callback_list)
 
-pso.run()
-#ff.model.base_line(500)
+print("Run genetic algorithm\n")
 
-# best = pso.best_individual()
-# result = np.array(best[1])
-# result = result.reshape((ff.size, ff.size, 3))
-# plt.imshow(result)
-# plt.show()
+for key, item in config.items():
+    if item is not None:
+        print("{0}: {1}".format(key, item))
+print('\n')
+
+ps.run()

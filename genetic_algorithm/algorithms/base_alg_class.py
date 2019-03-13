@@ -81,6 +81,7 @@ class BaseAlgorithmClass(ABC):
         self.population.rank_population()
         self.population.init_global_and_personal_best()
         self.init_steps()
+        self.get_all_fitness_eval()
 
     @abstractmethod
     def create_population(self):
@@ -113,8 +114,6 @@ class BaseAlgorithmClass(ABC):
         self.set_personal_bests()
         self.set_global_best()
 
-        self.callbacks_on_iteration_end()
-
     def run(self):
         """Run (solve) the algorithm."""
 
@@ -141,6 +140,8 @@ class BaseAlgorithmClass(ABC):
                 self.no_improvement += 1
 
             self.iteration_update_log(iteration_time, best_fitness_before_iteration)
+            self.callbacks_on_iteration_end()
+
             self.iteration += 1
 
         self.callbacks_on_search_end()

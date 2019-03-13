@@ -42,7 +42,7 @@ class LogToFile(CallbackBase):
     """Write log to a given file."""
 
     def __init__(self, file_path="./logs"):
-        super(LogToFile).__init__()
+        super().__init__()
 
         self.file_path = file_path
 
@@ -62,7 +62,7 @@ class RemoteControl(CallbackBase):
     """Recompile the model from a given config file."""
 
     def __init__(self, config_file):
-        super(RemoteControl).__init__()
+        super().__init__()
 
         self.config_file = config_file
 
@@ -101,7 +101,7 @@ class SaveResult(CallbackBase):
     """Save the best and the global best individual in a given file."""
 
     def __init__(self, result_file):
-        super(SaveResult, self).__init__()
+        super().__init__()
 
         self.result_file = result_file
 

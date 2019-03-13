@@ -1,5 +1,5 @@
 import yaml
-from elements.fitness_functions import RastriginFunction
+from fitness_functions.fitness_functions import RastriginFunction, FullyConnected
 from elements.callbacks import LogToFile, RemoteControl, SaveResult
 
 from algorithms.pso_alg import ParticleSwarm
@@ -9,20 +9,21 @@ with open("config_tmp.yml", 'r') as config_file:
 
 ps = ParticleSwarm(**config)
 
-ff = RastriginFunction()
+rf = RastriginFunction()
+fcf = FullyConnected()
 
 callback_list = []
-ltf = LogToFile(file_path="/home/biot/projects/research/logs")
+ltf = LogToFile(file_path="./logs")  # "/home/biot/projects/research/logs")
 callback_list.append(ltf)
 
 rc = RemoteControl(config_file="config_tmp.yml")
 callback_list.append(rc)
 
-sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt")
+sr = SaveResult(result_file="./logs/result.txt")  # "/home/biot/projects/research/logs/result.txt")
 callback_list.append(sr)
 
 ps.compile(config=config,
-           fitness_function=ff,
+           fitness_function=fcf,
            callbacks=callback_list)
 
 print("Run genetic algorithm\n")
@@ -33,3 +34,4 @@ for key, item in config.items():
 print('\n')
 
 ps.run()
+

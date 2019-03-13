@@ -1,5 +1,5 @@
 import yaml
-from elements.fitness_functions import RastriginFunction
+from fitness_functions.fitness_functions import RastriginFunction, FullyConnected
 from elements.callbacks import LogToFile, RemoteControl, SaveResult
 
 from algorithms.gen_alg import GeneticAlgorithm
@@ -9,7 +9,8 @@ with open("config_tmp.yml", 'r') as config_file:
 
 ga = GeneticAlgorithm(**config)
 
-ff = RastriginFunction()
+rf = RastriginFunction()
+fcf = FullyConnected()
 
 callback_list = []
 ltf = LogToFile(file_path="/home/biot/projects/research/logs")
@@ -22,7 +23,7 @@ sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt")
 callback_list.append(sr)
 
 ga.compile(config=config,
-           fitness_function=ff,
+           fitness_function=fcf,
            callbacks=callback_list)
 
 print("Run genetic algorithm\n")

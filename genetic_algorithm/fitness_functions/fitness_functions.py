@@ -39,13 +39,13 @@ class FullyConnected(FitnessFunctionBase):
     """Train a fully connected neural network on mnist from the fully_connected_nn.py."""
 
     def fitness_function(self, phenotype_of_genes):
-        max_num_of_params = 21620815
+        # max_num_of_params = 21620815
 
         result, num_of_params = train_model(phenotype_of_genes)
-        val_acc_ratio = 100 - (result * 100)
-        num_of_params_ratio = (num_of_params / max_num_of_params) * 100
+        val_acc_ratio = 100 - (result * 100)  # [1, 100]
+        num_of_params_ratio = np.log10(num_of_params)  # [3.89, 7.34]
 
-        return 100 * val_acc_ratio + num_of_params_ratio
+        return val_acc_ratio + (num_of_params_ratio / 2)
 
     def genotype_to_phenotype(self, genes):
         genes = np.array(genes)
@@ -60,7 +60,7 @@ class FullyConnected(FitnessFunctionBase):
         dropouts = genes[7:14]
         input_dict["dropouts"] = dropouts
 
-        learning_rate = np.exp(-4 * genes[14])
+        learning_rate = np.power(10, -4 * genes[14])
         input_dict["learning_rate"] = learning_rate
 
         return input_dict

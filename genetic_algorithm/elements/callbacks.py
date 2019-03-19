@@ -100,10 +100,26 @@ class RemoteControl(CallbackBase):
 class SaveResult(CallbackBase):
     """Save the best and the global best individual in a given file."""
 
-    def __init__(self, result_file):
+    def __init__(self, result_file, iteration_end=False):
         super().__init__()
 
         self.result_file = result_file
+        self.iteration_end = iteration_end
+
+    def on_iteration_end(self, logs):
+        if self.iteration_end:
+            result_dict = self.model.best_individual()
+            best_genes = result_dict["best individual"][0]
+            global_best_genes = result_dict["global best individual"][0]
+            real_best_genes = self.model.fitness_function.genotype_to_phenotype(best_genes)
+            real_global_best_genes = self.model.fitness_function.genotype_to_phenotype(global_best_genes)
+            result_dict["real_best_genes"] = real_best_genes
+            result_dict["real_global_best_genes"] = real_global_best_genes
+
+            with open(self.result_file, 'w+') as result_file:
+                result_file.write(str(result_dict))
+
+            print("Bests save in file: ", self.result_file)
 
     def on_search_end(self, logs):
         result_dict = self.model.best_individual()

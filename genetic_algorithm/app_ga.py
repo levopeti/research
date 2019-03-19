@@ -19,7 +19,7 @@ callback_list.append(ltf)
 rc = RemoteControl(config_file="config_tmp.yml")
 callback_list.append(rc)
 
-sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt")
+sr = SaveResult(result_file="/home/biot/projects/research/logs/result.txt", iteration_end=True)
 callback_list.append(sr)
 
 ga.compile(config=config,
@@ -27,6 +27,8 @@ ga.compile(config=config,
            callbacks=callback_list)
 
 print("Run genetic algorithm\n")
+
+# TODO: print init and config from class
 
 for key, item in config.items():
     if item is not None:

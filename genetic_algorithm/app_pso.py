@@ -19,14 +19,16 @@ callback_list.append(ltf)
 rc = RemoteControl(config_file="config_tmp.yml")
 callback_list.append(rc)
 
-sr = SaveResult(result_file="./logs/result.txt")  # "/home/biot/projects/research/logs/result.txt")
+sr = SaveResult(result_file="./logs/result.txt", iteration_end=True)  # "/home/biot/projects/research/logs/result.txt")
 callback_list.append(sr)
 
 ps.compile(config=config,
            fitness_function=fcf,
            callbacks=callback_list)
 
-print("Run genetic algorithm\n")
+print("Run particle swarm algorithm\n")
+
+# TODO: print init and config from class
 
 for key, item in config.items():
     if item is not None:

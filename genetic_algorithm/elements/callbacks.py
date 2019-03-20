@@ -41,10 +41,10 @@ class CallbackBase(ABC):
 class LogToFile(CallbackBase):
     """Write log to a given file."""
 
-    def __init__(self, file_path="./logs"):
+    def __init__(self, log_dir="./logs"):
         super().__init__()
 
-        self.file_path = file_path
+        self.file_path = log_dir
 
         if not os.path.exists(self.file_path):
             os.mkdir(self.file_path)
@@ -100,10 +100,10 @@ class RemoteControl(CallbackBase):
 class SaveResult(CallbackBase):
     """Save the best and the global best individual in a given file."""
 
-    def __init__(self, result_file, iteration_end=False):
+    def __init__(self, log_dir, iteration_end=False):
         super().__init__()
 
-        self.result_file = result_file
+        self.result_file = os.path.join(log_dir, "result.txt")
         self.iteration_end = iteration_end
 
     def on_iteration_end(self, logs):
@@ -134,4 +134,26 @@ class SaveResult(CallbackBase):
             result_file.write(str(result_dict))
 
         print("Result save in file: ", self.result_file)
+
+
+class CheckPoint(CallbackBase):
+    """Save the population in a given file."""
+
+    def __init__(self, log_dir, only_last=True):
+        super().__init__()
+
+        self.checkpoint_file = os.path.join(log_dir, "chckpnt")
+        self.only_last = only_last
+
+    def on_iteration_end(self, logs):
+        if not self.only_last:
+            file_name = self.checkpoint_file + "_{}".format(self.model.iteration)
+        else:
+            file_name = self.checkpoint_file
+
+        with open(file_name, "wb+") as chckpnt_file:
+            pickle.dump(self.model.population, chckpnt_file)
+
+        print("Checkpoint save in file: ", file_name)
+
 

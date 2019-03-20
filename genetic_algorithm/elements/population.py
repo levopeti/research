@@ -93,6 +93,10 @@ class PopulationBase(ABC):
             self.global_best_individual.fitness = self.__current_population[0].fitness
             self.global_best_individual.genes = self.__current_population[0].genes.copy()
 
+    @abstractmethod
+    def init_global_and_personal_best(self):
+        pass
+
     def get_global_best(self):
         """Get global best individual."""
         return self.global_best_individual
@@ -124,6 +128,10 @@ class Population(PopulationBase):
         individual = Chromosome(self.chromosome_size, self.fitness_function)
         individual.calculate_fitness()
         self.add_individual_to_pop(individual)
+
+    def init_global_and_personal_best(self):
+        self.global_best_individual.fitness = self.current_population[0].fitness
+        self.global_best_individual.genes = self.current_population[0].genes.copy()
 
     def crossover(self, selection_function):
         """Add new individuals to the population with crossover."""

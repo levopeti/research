@@ -241,7 +241,7 @@ entries += [norm_entry, inertia_entry, phi_p_entry, phi_g_entry, c_w_entry, c_p_
 
 # methaboard
 methaboard_button = button((12 + third_col_delta_x, 660), (132 + third_col_delta_x, 632), "run methaboard", "yellow")
-methaboard_entry = make_text_with_input(728, 680, 3, 14, "log path:", "/home/biot/projects/research/logs/log", width=30)
+methaboard_entry = make_text_with_input(728, 680, 3, 14, "log path:", "/home/biot/projects/research/genetic_algorithm/logs/log", width=30)
 
 while True:
     if config["active"]:

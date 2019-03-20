@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import time
+import pickle
 
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
@@ -60,6 +61,12 @@ class BaseAlgorithmClass(ABC):
         """Compile the functions of the algorithm."""
 
         self.config = config
+
+        # print config
+        for key, item in config.items():
+            if item is not None:
+                print("{0}: {1}".format(key, item))
+        print('\n')
 
         self.fitness_function = fitness_function
         self.callbacks = callbacks if callbacks else []
@@ -133,9 +140,9 @@ class BaseAlgorithmClass(ABC):
             print('Number of fitness evaluation so far: ', self.num_of_fitness_eval)
             print('Iteration process time: {0:.2f}s\n\n'.format(iteration_time))
 
-            if self.best_fitness > self.population.get_best_fitness():
+            if self.best_fitness > self.population.get_global_best().fitness:
                 self.no_improvement = 0
-                self.best_fitness = self.population.get_best_fitness()
+                self.best_fitness = self.population.get_global_best().fitness
             else:
                 self.no_improvement += 1
 
@@ -258,5 +265,17 @@ class BaseAlgorithmClass(ABC):
             print('{0:.3f}'.format(self.population[i].fitness))
         print('\n')
 
+    def load_population(self, checkpoint_path):
+        try:
+            with open(checkpoint_path, "rb") as log_file:
+                population = pickle.load(log_file)
+        except FileNotFoundError:
+            print("Wrong file path!")
+            exit()
+
+        assert population.pop_size == self.population_size
+        assert population.chromosome_size == self.chromosome_size
+
+        self.population = population
 
 

@@ -1,7 +1,7 @@
 import yaml
 import datetime
 from fitness_functions.fitness_functions import RastriginFunction, FullyConnected
-from elements.callbacks import LogToFile, RemoteControl, SaveResult, CheckPoint
+from elements.callbacks import LogToFile, RemoteControl, SaveResult, CheckPoint, DimReduction
 
 from algorithms.pso_alg import ParticleSwarm
 
@@ -27,6 +27,9 @@ callback_list.append(sr)
 
 cp = CheckPoint(log_dir=path, only_last=True)
 callback_list.append(cp)
+
+dr = DimReduction(log_dir=path, dimensions=2, frequency=10)
+callback_list.append(dr)
 
 ps.compile(config=config, fitness_function=fcf, callbacks=callback_list)
 

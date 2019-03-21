@@ -2,7 +2,12 @@ from abc import ABC
 import os
 import yaml
 import pickle
+import numpy as np
+from time import time
 from multiprocessing import cpu_count
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
@@ -106,6 +111,9 @@ class SaveResult(CallbackBase):
         self.result_file = os.path.join(log_dir, "result.txt")
         self.iteration_end = iteration_end
 
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+
     def on_iteration_end(self, logs):
         if self.iteration_end:
             result_dict = self.model.best_individual()
@@ -145,6 +153,9 @@ class CheckPoint(CallbackBase):
         self.checkpoint_file = os.path.join(log_dir, "chckpnt")
         self.only_last = only_last
 
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+
     def on_iteration_end(self, logs):
         if not self.only_last:
             file_name = self.checkpoint_file + "_{}".format(self.model.iteration)
@@ -156,4 +167,58 @@ class CheckPoint(CallbackBase):
 
         print("Checkpoint save in file: ", file_name)
 
+
+class DimReduction(CallbackBase):
+    """
+    Use TSNE dimension reduction on the population and visualize it.
+    frequency: iteration frequency of dimension reduction
+    dimension: n_component argument of TSNE
+    perplexity: perplexity argument of TSNE
+    """
+
+    def __init__(self, log_dir, frequency, plot_runtime=False, dimensions=2, perplexity=30):
+        super().__init__()
+
+        self.save_dir = log_dir
+        self.frequency = frequency
+        self.dimensions = dimensions
+        self.perplexity = perplexity
+        self.plot_rt = plot_runtime
+
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+
+    def on_iteration_end(self, logs):
+        if logs[-2]["iteration_end"]["iteration"] % self.frequency == 0:
+            start = time()
+
+            population = []
+            fitness_values = []
+
+            for individual in self.model.population:
+                population.append(individual.genes)
+                fitness_values.append(individual.fitness)
+
+            population = np.array(population)
+            fitness_values = np.array(fitness_values)
+
+            embedded_population = TSNE(n_components=self.dimensions, perplexity=self.perplexity).fit_transform(population)
+
+            if self.dimensions == 2:
+                plt.scatter(embedded_population[:, 0], embedded_population[:, 1], c=fitness_values)
+                plt.colorbar()
+            elif self.dimensions == 3:
+                fig = plt.figure()
+                ax = Axes3D(fig)
+                h = ax.scatter(embedded_population[:, 0], embedded_population[:, 1], embedded_population[:, 2], c=fitness_values)
+
+                fig.colorbar(h)
+
+            plt.savefig(os.path.join(self.save_dir, '{}.png'.format(logs[-2]["iteration_end"]["iteration"])))
+
+            if self.plot_rt:
+                plt.show()
+
+            plt.close()
+            print("TSNE time: {0:.2f}s".format(time() - start))
 

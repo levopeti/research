@@ -28,7 +28,7 @@ def define_model(num_of_hidden_layers, dropouts, size_of_layers):
     image_size = 784
     channels = 1
     input_shape = (image_size,)
-    print(input_shape)
+
     ip = Input(shape=input_shape, name='input')
     x = Dropout(rate=dropouts[0])(ip)
 

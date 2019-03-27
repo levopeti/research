@@ -47,7 +47,8 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         Create the first population, calculate the population's fitness and
         rank the population by fitness according to the order specified.
         """
-        self.population = Population(self.population_size, self.chromosome_size, self.fitness_function)
+        if self.population is None:
+            self.population = Population(self.population_size, self.chromosome_size, self.fitness_function)
 
     def init_steps(self):
         """Initialize the iteration steps."""

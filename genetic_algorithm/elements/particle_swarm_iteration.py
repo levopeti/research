@@ -46,7 +46,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
         If p is greater than or equal to c_p and less than c_g
         we modify the gene to the right gene from the global best.
         if p is greater than or equal to c_g
-        we modify the gene to a random gene [0, 1].
+        we modify the gene to a random one [0, 1].
         """
 
         for i in range(particle.chromosome_size):
@@ -61,7 +61,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
             else:
                 particle.genes[i] = np.random.rand()
 
-            particle.calculate_fitness()
+        particle.calculate_fitness()
 
         return particle
 

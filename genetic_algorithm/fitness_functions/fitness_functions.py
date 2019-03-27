@@ -45,22 +45,24 @@ class FullyConnected(FitnessFunctionBase):
         val_acc_ratio = 100 - (result * 100)  # [1, 100]
         num_of_params_ratio = np.log10(num_of_params)  # [3.89, 7.34]
 
-        return val_acc_ratio + (num_of_params_ratio / 2)
+        return val_acc_ratio + (num_of_params_ratio / 4)
 
     def genotype_to_phenotype(self, genes):
+        # TODO: param min max
+
         genes = np.array(genes)
         input_dict = {"gpu": [0]}
 
-        num_of_hidden_layers = int(math.floor(genes[0] * 6.999))
+        num_of_hidden_layers = int(math.floor(genes[0] * 4.999))
         input_dict["num_of_hidden_layers"] = num_of_hidden_layers
 
-        size_of_layers = np.floor((genes[1:7] * 1990) + 11).astype("int")
+        size_of_layers = np.floor((genes[1:5] * 1490) + 5).astype("int")
         input_dict["size_of_layers"] = size_of_layers
 
-        dropouts = genes[7:14]
+        dropouts = genes[5:10] * 0.9
         input_dict["dropouts"] = dropouts
 
-        learning_rate = np.power(10, -4 * genes[14])
+        learning_rate = np.power(10, -4 * genes[10])
         input_dict["learning_rate"] = learning_rate
 
         return input_dict

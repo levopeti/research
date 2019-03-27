@@ -28,14 +28,15 @@ callback_list.append(sr)
 cp = CheckPoint(log_dir=path, only_last=True)
 callback_list.append(cp)
 
-dr = DimReduction(log_dir=path, dimensions=2, frequency=10)
+dr = DimReduction(log_dir=path, dimensions=2, frequency=10, plot_runtime=False)
 callback_list.append(dr)
 
+# ps.load_population(checkpoint_path="/mnt/raid1/levinspiron/research/genetic_algorithm/logs/pso-19-20-03-15-42-4/chckpnt")
 ps.compile(config=config, fitness_function=fcf, callbacks=callback_list)
 
 print("Run particle swarm algorithm\n")
 
 ps.run()
 
-# TODO: own config file, flags
+# TODO: own config file, flags, parallelism on gpu
 

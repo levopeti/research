@@ -277,5 +277,6 @@ class BaseAlgorithmClass(ABC):
         assert population.chromosome_size == self.chromosome_size
 
         self.population = population
+        print('Load population from {}.'.format(checkpoint_path))
 
 

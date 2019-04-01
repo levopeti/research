@@ -78,18 +78,21 @@ def train_model(parameters):
     callbacks = list()
 
     callbacks.append(EarlyStopping(monitor='val_acc', min_delta=0.0001, patience=14))
-    callbacks.append(ReduceLROnPlateau(monitor='val_loss', factor=0.3, cooldown=2, patience=5, verbose=1, min_lr=0.000001))
+    callbacks.append(ReduceLROnPlateau(monitor='val_loss', factor=0.3, cooldown=2, patience=5, verbose=0, min_lr=0.000001))
     # callbacks.append(ModelCheckpoint("./weights/szakdoga.{epoch:02d}-{val_loss:.2f}.hdf5", verbose=1,
     #                                    monitor='val_loss', save_best_only=True, save_weights_only=True))
     # callbacks.append(TensorBoard(log_dir='./logs', histogram_freq=1, write_graph=False, write_grads=True))
     history = model.fit(X_train, y_train,
                         batch_size=100,
                         epochs=2000,
-                        verbose=1,
+                        verbose=0,
                         validation_data=(X_test, y_test),
                         callbacks=callbacks)
 
     result = history.history['val_acc'][-15]
+
+    print("Process is ready on gpu:{}.".format(parameters["gpu"]))
+    del model
 
     return result, num_of_params
 

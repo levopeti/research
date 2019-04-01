@@ -1,6 +1,9 @@
 import numpy as np
 import math
+import time
 from abc import ABC, abstractmethod
+import os
+import GPUtil
 
 from fitness_functions.fully_connected_nn import train_model
 
@@ -39,7 +42,7 @@ class FullyConnected(FitnessFunctionBase):
     """Train a fully connected neural network on mnist from the fully_connected_nn.py."""
 
     def fitness_function(self, phenotype_of_genes):
-        # max_num_of_params = 21620815
+        # max_num_of_params = 21620815, 6 hidden layers
 
         result, num_of_params = train_model(phenotype_of_genes)
         val_acc_ratio = 100 - (result * 100)  # [1, 100]
@@ -49,9 +52,18 @@ class FullyConnected(FitnessFunctionBase):
 
     def genotype_to_phenotype(self, genes):
         # TODO: param min max
+        time.sleep(np.random.random() * 4)
+        current_gpu = os.getpid() % 4
+
+        while True:
+            available_gpus = GPUtil.getAvailable(order='first', limit=8, maxLoad=0.1, maxMemory=1, includeNan=False, excludeID=[], excludeUUID=[])
+            if current_gpu not in available_gpus:
+                current_gpu = (current_gpu + 1) % 4
+            else:
+                break
 
         genes = np.array(genes)
-        input_dict = {"gpu": [0]}
+        input_dict = {"gpu": [current_gpu]}
 
         num_of_hidden_layers = int(math.floor(genes[0] * 4.999))
         input_dict["num_of_hidden_layers"] = num_of_hidden_layers

@@ -41,7 +41,7 @@ def configure_algorithm(parameters):
     fitness_func = None
     if parameters["fitness_function"] == "rf":
         fitness_func = RastriginFunction()
-    elif parameters["fitness_function"] == "fcf":
+    elif parameters["fitness_function"] == "fc":
         fitness_func = FullyConnected()
 
     callback_list = []
@@ -67,11 +67,11 @@ def configure_algorithm(parameters):
 
     return alg
 
-# TODO: show result, dimred with const metric, graphic_config, messy genetic
+# TODO: show result, dimred with const metric, graphic_config, messy genetic, pause/continue
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Compile and run a particle swarm algorithm.")
+    parser = argparse.ArgumentParser(description="Compile and run a metaheuristic  algorithm.")
 
     parser.add_argument('--dir_path', help='Dir path for logs, checkpoint and result files.', type=str)
     parser.add_argument('--type', help='Type of algorithm.', choices=['gen', 'pso'], type=str)

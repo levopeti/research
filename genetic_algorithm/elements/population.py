@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 from abc import ABC, abstractmethod
+from pathos.multiprocessing import Pool
 
 from elements.chromosome import Chromosome, Particle
 
@@ -11,9 +12,9 @@ class PopulationBase(ABC):
     """Base class of population for metaheuristic algorithms."""
 
     __slots__ = "__current_generation", "pop_size", "chromosome_size", "counter",\
-                "fitness_function", "global_best_individual"
+                "fitness_function", "global_best_individual", "pool", "pool_size"
 
-    def __init__(self, pop_size, chromosome_size, fitness_function):
+    def __init__(self, pop_size, chromosome_size, fitness_function, pool, pool_size):
         """Initialise the Population."""
 
         self.__current_population = []
@@ -22,6 +23,9 @@ class PopulationBase(ABC):
         self.counter = -1
         self.fitness_function = fitness_function
         self.global_best_individual = None
+
+        self.pool = pool
+        self.pool_size = pool_size
 
         self.create_initial_population()
 
@@ -108,19 +112,28 @@ class PopulationBase(ABC):
 class Population(PopulationBase):
     """ Population class that encapsulates all of the chromosomes."""
 
-    def __init__(self, pop_size, chromosome_size, fitness_function):
-        super().__init__(pop_size, chromosome_size, fitness_function)
+    def __init__(self, pop_size, chromosome_size, fitness_function, pool, pool_size):
+        super().__init__(pop_size, chromosome_size, fitness_function, pool, pool_size)
 
         self.global_best_individual = Chromosome(self.chromosome_size, self.fitness_function)
-        self.global_best_individual.calculate_fitness()
 
     def create_initial_population(self):
         """Create members of the first population randomly."""
 
         for _ in range(self.pop_size):
             individual = Chromosome(self.chromosome_size, self.fitness_function)
-            individual.calculate_fitness()
+            if not self.pool:
+                individual.calculate_fitness()
             self.add_individual_to_pop(individual)
+
+        if self.pool:
+            p = Pool(self.pool_size)
+            fitness_values = p.map(Particle.calculate_fitness, self.current_population[:])
+
+            for value, member in zip(fitness_values, self.current_population[:]):
+                member.fitness = value
+
+            p.terminate()
 
     def add_new_individual(self):
         """Add new individual with fitness value to the current population."""
@@ -182,40 +195,38 @@ class Population(PopulationBase):
             member.calculate_fitness_test()
             member.apply_test_if_better()
 
-    def invasive_weed(self, iteration, iter_max, e, sigma_init, sigma_fin, N_min, N_max, **kwargs):
+    def invasive_weed(self, iteration, iter_max, e, sigma_init, sigma_fin, N_min, N_max, member):
         """Add new individuals to the population via methods of invasive weed algorithm."""
 
         seeds = []
-        for member in self.current_population:
-            sigma = ((iter_max - iteration) / iter_max)
-            sigma = pow(sigma, e)
-            sigma = sigma * (sigma_init - sigma_fin) + sigma_fin
+        sigma = ((iter_max - iteration) / iter_max)
+        sigma = pow(sigma, e)
+        sigma = sigma * (sigma_init - sigma_fin) + sigma_fin
 
-            fitness_max = self.current_population[-1].fitness
-            fitness_min = self.current_population[0].fitness
+        fitness_max = self.current_population[-1].fitness
+        fitness_min = self.current_population[0].fitness
 
-            ratio = (fitness_max - member.fitness) / (fitness_max - fitness_min)
-            N = int(N_min + (N_max - N_min) * ratio)
+        ratio = (fitness_max - member.fitness) / (fitness_max - fitness_min)
+        N = int(N_min + (N_max - N_min) * ratio)
 
-            for _ in range(N):
-                seed = Chromosome(self.chromosome_size, self.fitness_function)
-                for i in range(self.chromosome_size):
-                    random_value = random.uniform(member.genes[i] - sigma, member.genes[i] + sigma)
-                    seed.genes[i] = random_value
+        for _ in range(N):
+            seed = Chromosome(self.chromosome_size, self.fitness_function)
+            for i in range(self.chromosome_size):
+                random_value = random.uniform(member.genes[i] - sigma, member.genes[i] + sigma)
+                seed.genes[i] = random_value
 
-                seed.resize_invalid_genes()
-                seed.calculate_fitness()
-                seeds.append(seed)
+            seed.resize_invalid_genes()
+            seed.calculate_fitness()
+            seeds.append(seed)
 
-        for seed in seeds:
-            self.add_individual_to_pop(seed)
+        return seeds
 
 
 class Swarm(PopulationBase):
     """ Swarm class that encapsulates all of the particles."""
 
-    def __init__(self, pop_size, chromosome_size, fitness_function):
-        super().__init__(pop_size, chromosome_size, fitness_function)
+    def __init__(self, pop_size, chromosome_size, fitness_function, pool, pool_size):
+        super().__init__(pop_size, chromosome_size, fitness_function, pool, pool_size)
 
         self.global_best_individual = Particle(self.chromosome_size, self.fitness_function)
 
@@ -224,8 +235,18 @@ class Swarm(PopulationBase):
 
         for _ in range(self.pop_size):
             individual = Particle(self.chromosome_size, self.fitness_function)
-            individual.calculate_fitness()
+            if not self.pool:
+                individual.calculate_fitness()
             self.add_individual_to_pop(individual)
+
+        if self.pool:
+            p = Pool(self.pool_size)
+            fitness_values = p.map(Particle.calculate_fitness, self.current_population[:])
+
+            for value, member in zip(fitness_values, self.current_population[:]):
+                member.fitness = value
+
+            p.terminate()
 
     def add_new_individual(self):
         """Add new individual with fitness value to the current population."""

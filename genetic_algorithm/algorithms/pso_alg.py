@@ -44,7 +44,7 @@ class ParticleSwarm(BaseAlgorithmClass):
         rank the population by fitness according to the order specified.
         """
         if self.population is None:
-            self.population = Swarm(self.population_size, self.chromosome_size, self.fitness_function)
+            self.population = Swarm(self.population_size, self.chromosome_size, self.fitness_function, self.pool, self.pool_size)
 
     def init_steps(self):
         """Initialize the iteration steps."""
@@ -64,7 +64,7 @@ class ParticleSwarm(BaseAlgorithmClass):
 
         if name == "Swarm iteration":
             current_function = partial(self.swarm_iteration_function, self.population.global_best_individual.genes)
-            name = name[:12] + ' ' + self.config["iteration_type"]
+            name = name[:15] + ' ' + self.config["iteration_type"]
         elif name == "Mutation":
             current_function = self.mutation_function
             name = name[:8] + ' ' + self.config["mutation_type"]

@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import time
 import pickle
+from functools import partial
+from pdb import set_trace
 
 from elements.selections import selection_functions
 from elements.memetics import memetic_functions
@@ -55,7 +57,7 @@ class BaseAlgorithmClass(ABC):
         self.progress_bar = True
 
         if self.pool:
-            print('Use process pool with pool size {}.'.format(self.pool_size))
+            print('Using process pool with pool size {}.\n'.format(self.pool_size))
 
     def compile(self, config, fitness_function, callbacks=None):
         """Compile the functions of the algorithm."""
@@ -64,7 +66,17 @@ class BaseAlgorithmClass(ABC):
 
         # print config
         for key, item in config.items():
-            if item is not None:
+            if item is True:
+                print("{0}: {1}".format(key, item))
+        print('\n')
+
+        for key, item in config.items():
+            if isinstance(item, str) and item is not True and item:
+                print("{0}: {1}".format(key, item))
+        print('\n')
+
+        for key, item in config.items():
+            if isinstance(item, (int, float)) and item is not True and item:
                 print("{0}: {1}".format(key, item))
         print('\n')
 

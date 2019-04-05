@@ -56,6 +56,7 @@ class ChromosomeBase(ABC):
         """Calculate the fitness value of the chromosome."""
         self.__fitness = self.fitness_function.calculate(self.__genes)
         self.num_fitness_eval += 1
+        return self.__fitness
 
     @property
     def fitness(self):
@@ -204,12 +205,14 @@ class Particle(ChromosomeBase):
         self.global_best = None
         self.personal_best_fitness = None
 
-        self.create_individual()
+        self.init_velocity()
 
     def create_individual(self):
         """Create a candidate solution representation."""
         self.genes = np.random.rand(self.chromosome_size)
         self.personal_best = self.genes.copy
+
+    def init_velocity(self):
         self.velocity = np.random.rand(self.chromosome_size)
 
     def resize_invalid_genes(self):

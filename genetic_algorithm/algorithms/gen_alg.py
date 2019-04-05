@@ -48,7 +48,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         rank the population by fitness according to the order specified.
         """
         if self.population is None:
-            self.population = Population(self.population_size, self.chromosome_size, self.fitness_function)
+            self.population = Population(self.population_size, self.chromosome_size, self.fitness_function, self.pool, self.pool_size)
 
     def init_steps(self):
         """Initialize the iteration steps."""
@@ -88,7 +88,24 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             self.population.differential_evolution(**self.config)
 
         elif name == "Invasive weed":
-            self.population.invasive_weed(iteration=self.iteration, **self.config)
+            if self.pool:
+                p = Pool(self.pool_size)
+                func = partial(self.population.invasive_weed, self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"])
+                seeds = p.map(func, self.population[:])
+                seeds = sum(seeds, [])
+
+                for seed in seeds:
+                    self.population.add_individual_to_pop(seed)
+                p.terminate()
+            else:
+                seeds = []
+                for member in self.population:
+                    seed = self.population.invasive_weed(self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"], member)
+                    seeds.append(seed)
+                seeds = sum(seeds, [])
+
+                for seed in seeds:
+                    self.population.add_individual_to_pop(seed)
 
         elif name == "Add pure new":
             for _ in range(self.num_of_new_individual):

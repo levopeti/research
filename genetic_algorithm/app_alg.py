@@ -48,16 +48,16 @@ def configure_algorithm(parameters):
     if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
         callback_list.append(LogToFile(log_dir=path))
 
-    if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
+    if "rc" in parameters["callbacks"] or parameters["all_cb"]:
         callback_list.append(RemoteControl(config_file=config_path))
 
-    if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
+    if "sr" in parameters["callbacks"] or parameters["all_cb"]:
         callback_list.append(SaveResult(log_dir=path, iteration_end=True))
 
-    if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
+    if "cp" in parameters["callbacks"] or parameters["all_cb"]:
         callback_list.append(CheckPoint(log_dir=path, only_last=True))
 
-    if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
+    if "dr" in parameters["callbacks"] or parameters["all_cb"]:
         callback_list.append(DimReduction(log_dir=path, dimensions=2, frequency=2, plot_runtime=False))
 
     if parameters["load"]:

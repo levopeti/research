@@ -56,7 +56,8 @@ class FullyConnected(FitnessFunctionBase):
         result, num_of_params = train_model(phenotype_of_genes)
         val_acc_ratio = 100 - (result * 100)  # [1, 100]
         num_of_params_ratio = np.log10(num_of_params)  # [3.89, 7.34]
-        print("Number of parameters: {} / {}\nResult: {} / {}\n\n".format(num_of_params, num_of_params_ratio, result, val_acc_ratio))
+        print("Number of parameters: {} / {}\nResult: {} / {}".format(num_of_params, num_of_params_ratio, result, val_acc_ratio))
+        print(val_acc_ratio + (num_of_params_ratio / 5), '\n')
 
         return val_acc_ratio + (num_of_params_ratio / 5)
 

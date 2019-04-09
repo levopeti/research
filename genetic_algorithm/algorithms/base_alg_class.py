@@ -277,6 +277,8 @@ class BaseAlgorithmClass(ABC):
         print('Best fitness values:')
         for i in range(top_n if self.population_size >= top_n else self.population_size):
             print('{0:.3f}'.format(self.population[i].fitness))
+        print('Global best fitness value:')
+        print('{0:.3f}'.format(self.population.get_global_best().fitness))
         print('\n')
 
     def load_population(self, checkpoint_path):

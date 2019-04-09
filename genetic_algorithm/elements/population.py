@@ -1,9 +1,11 @@
 from operator import attrgetter
 import random
 import numpy as np
+from functools import partial
 
 from abc import ABC, abstractmethod
 from pathos.multiprocessing import Pool
+from multiprocessing import Manager
 
 from elements.chromosome import Chromosome, Particle
 
@@ -128,7 +130,21 @@ class Population(PopulationBase):
 
         if self.pool:
             p = Pool(self.pool_size)
-            fitness_values = p.map(Particle.calculate_fitness, self.current_population[:])
+            manager = Manager()
+            lock = manager.Lock()
+            counter = manager.Value('i', 0)
+
+            def pool_function(inside_lock, inside_counter, inside_member):
+                inside_lock.acquire()
+                inside_counter.value += 1
+                inside_lock.release()
+
+                fitness_value = inside_member.calculate_fitness(gpu=inside_counter.value % 4)
+
+                return fitness_value
+
+            func = partial(pool_function, lock, counter)
+            fitness_values = p.map(func, self.current_population[:])
 
             for value, member in zip(fitness_values, self.current_population[:]):
                 member.fitness = value
@@ -166,7 +182,7 @@ class Population(PopulationBase):
         self.add_individual_to_pop(child_1)
         self.add_individual_to_pop(child_2)
 
-    def differential_evolution(self, CR, F, **kwargs):
+    def differential_evolution(self, CR, F, current_index, **kwargs):
         """Modify the population via methods of differential evolution."""
 
         assert 0 <= CR <= 1
@@ -174,28 +190,30 @@ class Population(PopulationBase):
 
         all_indexes = range(len(self))
 
-        for current_index in all_indexes:
-            valid_indexes = set(all_indexes) - {current_index}
-            a_index, b_index, c_index = random.sample(valid_indexes, 3)
+        # for current_index in all_indexes:
+        valid_indexes = set(all_indexes) - {current_index}
+        a_index, b_index, c_index = random.sample(valid_indexes, 3)
 
-            a_genes = np.array(self[a_index].genes)
-            b_genes = np.array(self[b_index].genes)
-            c_genes = np.array(self[c_index].genes)
+        a_genes = np.array(self[a_index].genes)
+        b_genes = np.array(self[b_index].genes)
+        c_genes = np.array(self[c_index].genes)
 
-            member = self[current_index]
-            donor_genes = a_genes + F * (b_genes - c_genes)
-            member.set_test()
-            random_index = random.choice(range(len(member)))
+        member = self[current_index]
+        donor_genes = a_genes + F * (b_genes - c_genes)
+        member.set_test()
+        random_index = random.choice(range(len(member)))
 
-            for i in range(len(member)):
-                if i == random_index or CR > np.random.rand():
-                    member.genes_test[i] = donor_genes[i]
+        for i in range(len(member)):
+            if i == random_index or CR > np.random.rand():
+                member.genes_test[i] = donor_genes[i]
 
-            member.resize_invalid_genes_test()
-            member.calculate_fitness_test()
-            member.apply_test_if_better()
+        member.resize_invalid_genes_test()
+        member.calculate_fitness_test(**kwargs)
+        member.apply_test_if_better()
 
-    def invasive_weed(self, iteration, iter_max, e, sigma_init, sigma_fin, N_min, N_max, member):
+        return member
+
+    def invasive_weed(self, iteration, iter_max, e, sigma_init, sigma_fin, N_min, N_max, member, **kwargs):
         """Add new individuals to the population via methods of invasive weed algorithm."""
 
         seeds = []
@@ -216,7 +234,7 @@ class Population(PopulationBase):
                 seed.genes[i] = random_value
 
             seed.resize_invalid_genes()
-            seed.calculate_fitness()
+            seed.calculate_fitness(**kwargs)
             seeds.append(seed)
 
         return seeds
@@ -241,7 +259,21 @@ class Swarm(PopulationBase):
 
         if self.pool:
             p = Pool(self.pool_size)
-            fitness_values = p.map(Particle.calculate_fitness, self.current_population[:])
+            manager = Manager()
+            lock = manager.Lock()
+            counter = manager.Value('i', 0)
+
+            def pool_function(inside_lock, inside_counter, inside_member):
+                inside_lock.acquire()
+                inside_counter.value += 1
+                inside_lock.release()
+
+                fitness_value = inside_member.calculate_fitness(gpu=inside_counter.value % 4)
+
+                return fitness_value
+
+            func = partial(pool_function, lock, counter)
+            fitness_values = p.map(func, self.current_population[:])
 
             for value, member in zip(fitness_values, self.current_population[:]):
                 member.fitness = value

@@ -52,9 +52,9 @@ class ChromosomeBase(ABC):
         """Create a candidate solution representation."""
         pass
 
-    def calculate_fitness(self):
+    def calculate_fitness(self, **kwargs):
         """Calculate the fitness value of the chromosome."""
-        self.__fitness = self.fitness_function.calculate(self.__genes)
+        self.__fitness = self.fitness_function.calculate(self.__genes, **kwargs)
         self.num_fitness_eval += 1
         return self.__fitness
 
@@ -91,12 +91,12 @@ class ChromosomeBase(ABC):
         self.__genes_test = genes
         self.resize_invalid_genes_test()
 
-    def calculate_fitness_test(self):
+    def calculate_fitness_test(self, **kwargs):
         """Calculate the test fitness value of the test genes."""
         if self.genes_test is None:
             raise ValueError("Genes test is not set!")
 
-        self.__fitness_test = self.fitness_function.calculate(self.__genes_test)
+        self.__fitness_test = self.fitness_function.calculate(self.__genes_test, **kwargs)
         self.num_fitness_eval += 1
 
     def resize_invalid_genes(self):
@@ -155,9 +155,9 @@ class ChromosomeBase(ABC):
 
             return False
 
-    def apply_on_chromosome(self, func):
+    def apply_on_chromosome(self, func, **kwargs):
         """Apply function on the chromosome."""
-        func(self)
+        func(self, **kwargs)
 
 
 class Chromosome(ChromosomeBase):

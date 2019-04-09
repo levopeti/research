@@ -96,6 +96,8 @@ class BaseAlgorithmClass(ABC):
         Calculate the population's fitness and rank the population
         by fitness ascending order.
         """
+        print("Initialize population")
+
         self.create_population()
         self.population.rank_population()
         self.population.init_global_and_personal_best()

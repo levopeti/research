@@ -80,38 +80,59 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         start = time.time()
 
         if name == "Crossover":
+            # TODO
             for _ in range(self.num_of_crossover):
                 self.population.crossover(self.selection_function)
                 name = name[:9] + ' ' + self.config["selection_type"]
-
+            iterator = range(self.num_of_crossover)
         elif name == "Differential evolution":
-            self.population.differential_evolution(**self.config)
-
+            current_function = partial(self.population.differential_evolution, self.config["CR"], self.config["F"])
+            iterator = range(len(self.population))
         elif name == "Invasive weed":
-            if self.pool:
-                p = Pool(self.pool_size)
-                func = partial(self.population.invasive_weed, self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"])
-                seeds = p.map(func, self.population[:])
-                seeds = sum(seeds, [])
-
-                for seed in seeds:
-                    self.population.add_individual_to_pop(seed)
-                p.terminate()
-            else:
-                seeds = []
-                for member in self.population:
-                    seed = self.population.invasive_weed(self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"], member)
-                    seeds.append(seed)
-                seeds = sum(seeds, [])
-
-                for seed in seeds:
-                    self.population.add_individual_to_pop(seed)
-
+            current_function = partial(self.population.invasive_weed, self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"])
+            iterator = range(len(self.population[:]))
         elif name == "Add pure new":
+            # TODO
             for _ in range(self.num_of_new_individual):
                 self.population.add_new_individual()
+            iterator = range(self.num_of_new_individual)
         else:
             raise NameError("Bad type of function.")
+        if self.pool:
+            p = Pool(self.pool_size)
+            manager = Manager()
+            lock = manager.Lock()
+            counter = manager.Value('i', 0)
+
+            def pool_function(inside_lock, inside_counter, inside_member):
+                inside_lock.acquire()
+                inside_counter.value += 1
+                inside_lock.release()
+
+                inside_members = current_function(inside_member, gpu=inside_counter.value % 4)
+                return inside_members
+
+            func = partial(pool_function, lock, counter)
+
+            members = p.map(func, iterator)
+
+            if name == "Differential evolution":
+                self.population.current_population = members
+            else:
+                members = sum(members, [])
+                for member in members:
+                    self.population.add_individual_to_pop(member)
+            p.terminate()
+        else:
+            # TODO
+            seeds = []
+            for member in self.population:
+                seed = self.population.invasive_weed(self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"], member)
+                seeds.append(seed)
+            seeds = sum(seeds, [])
+
+            for seed in seeds:
+                self.population.add_individual_to_pop(seed)
 
         step_time = time.time() - start
         print('{0} time: {1:.2f}s\n'.format(name, step_time))
@@ -139,6 +160,9 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                 else:
                     self.progress_bar = True
 
+        if self.fitness_function.name == "fully connected":
+            self.progress_bar = False
+
         if self.pool:
             p = Pool(self.pool_size)
             manager = Manager()
@@ -150,10 +174,13 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                 pbar = None
 
             def pool_function(inside_lock, inside_counter, inside_member):
-                inside_member.apply_on_chromosome(current_function)
-
                 inside_lock.acquire()
                 inside_counter.value += 1
+                inside_lock.release()
+
+                inside_member.apply_on_chromosome(current_function, gpu=inside_counter.value % 4)
+
+                inside_lock.acquire()
                 if pbar:
                     pbar.update(inside_counter.value)
                 inside_lock.release()

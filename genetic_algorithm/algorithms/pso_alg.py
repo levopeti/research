@@ -78,6 +78,9 @@ class ParticleSwarm(BaseAlgorithmClass):
                 else:
                     self.progress_bar = True
 
+        if self.fitness_function.name == "fully connected":
+            self.progress_bar = False
+
         if self.pool:
             p = Pool(self.pool_size)
             manager = Manager()
@@ -89,10 +92,13 @@ class ParticleSwarm(BaseAlgorithmClass):
                 pbar = None
 
             def pool_function(inside_lock, inside_counter, inside_member):
-                inside_member.apply_on_chromosome(current_function)
-
                 inside_lock.acquire()
                 inside_counter.value += 1
+                inside_lock.release()
+
+                inside_member.apply_on_chromosome(current_function, gpu=inside_counter.value % 4)
+
+                inside_lock.acquire()
                 if pbar:
                     pbar.update(inside_counter.value)
                 inside_lock.release()

@@ -6,7 +6,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
 
     assert 0 <= c_w <= c_p <= c_g
 
-    def pso_iteration(global_best_genes, particle):
+    def pso_iteration(global_best_genes, particle, **kwargs):
         """Update the velocity vectors and update the genes according to them."""
 
         def normalization(vector):
@@ -33,11 +33,11 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
         particle.velocity = velocity
 
         particle.resize_invalid_genes()
-        particle.calculate_fitness()
+        particle.calculate_fitness(**kwargs)
 
         return particle
 
-    def sso_iteration(global_best_genes, particle):
+    def sso_iteration(global_best_genes, particle, **kwargs):
         """
         Modify the genes according to a random number (p).
         If p is less than c_w we do not modify the gene.
@@ -61,7 +61,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
             else:
                 particle.genes[i] = np.random.rand()
 
-        particle.calculate_fitness()
+        particle.calculate_fitness(**kwargs)
 
         return particle
 

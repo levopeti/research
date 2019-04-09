@@ -50,14 +50,14 @@ def define_model(num_of_hidden_layers, dropouts, size_of_layers):
 def train_model(parameters):
     model = None
 
-    for key, item in parameters.items():
-        print("{}: {}".format(key, item))
-    print()
+    # for key, item in parameters.items():
+    #     print("{}: {}".format(key, item))
+    # print()
 
     # Distribute the model to the defined number of GPUs
     # print("Using {} GPU(s)...".format(parameters["gpu"]))
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-    # os.environ['CUDA_VISIBLE_DEVICES'] = ', '.join(str(gpu) for gpu in parameters["gpu"])
+    os.environ['CUDA_VISIBLE_DEVICES'] = ', '.join(str(gpu) for gpu in parameters["gpu"])
 
     model_params = dict(num_of_hidden_layers=parameters["num_of_hidden_layers"],
                         dropouts=parameters["dropouts"],
@@ -78,39 +78,21 @@ def train_model(parameters):
     }
 
     model.compile(loss='categorical_crossentropy', optimizer=optimizers["adam"], metrics=["accuracy"])
-    print("Finished compiling.")
+    # print("Finished compiling.")
 
     num_of_params = model.count_params()
 
     # Define the callbacks
     callbacks = list()
+    patience = 14
 
-    callbacks.append(EarlyStopping(monitor='val_acc', min_delta=0.0001, patience=14))
+    callbacks.append(EarlyStopping(monitor='val_acc', min_delta=0.0001, patience=patience))
     callbacks.append(ReduceLROnPlateau(monitor='val_loss', factor=0.3, cooldown=2, patience=5, verbose=0, min_lr=0.000001))
     # callbacks.append(ModelCheckpoint("./weights/szakdoga.{epoch:02d}-{val_loss:.2f}.hdf5", verbose=1,
     #                                    monitor='val_loss', save_best_only=True, save_weights_only=True))
     # callbacks.append(TensorBoard(log_dir='./logs', histogram_freq=1, write_graph=False, write_grads=True))
 
-    num_of_gpus = 4
-
-    # np.random.seed(os.getpid())
-    # delay = np.random.random() * 100
-    # print("delay: ", delay)
-    # time.sleep(delay)
-    current_gpu = os.getpid() % num_of_gpus
-
-    while True:
-        available_gpus = GPUtil.getAvailable(order='first', limit=8, maxLoad=0.1, maxMemory=1, includeNan=False, excludeID=[], excludeUUID=[])
-        if current_gpu not in available_gpus:
-            current_gpu = (current_gpu + 1) % num_of_gpus
-            # time.sleep(2)
-        else:
-            break
-
-    print("Using {} GPU(s)...".format(current_gpu))
-    os.environ['CUDA_VISIBLE_DEVICES'] = ', '.join(str(gpu) for gpu in [current_gpu])
-
-    print("Start training\n")
+    # print("Start training\n")
     history = model.fit(X_train, y_train,
                         batch_size=100,
                         epochs=2000,
@@ -118,8 +100,8 @@ def train_model(parameters):
                         validation_data=(X_test, y_test),
                         callbacks=callbacks)
 
-    result = history.history['val_acc'][-15]
+    result = history.history['val_acc'][-(patience + 1)]
 
-    print("Process is finished on gpu:{}.".format(current_gpu))
+    # print("Process is finished on gpu:{}.".format(parameters["gpu"]))
 
     return result, num_of_params

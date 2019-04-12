@@ -1,9 +1,11 @@
 """ gp.py
 Bayesian optimisation of loss functions.
+https://github.com/thuijskens/bayesian-optimization
 """
 
 import numpy as np
 import sklearn.gaussian_process as gp
+from pathos.multiprocessing import Pool
 
 from scipy.stats import norm
 from scipy.optimize import minimize
@@ -93,7 +95,7 @@ def sample_next_hyperparameter(acquisition_func, gaussian_process, evaluated_los
 
 
 def bayesian_optimisation(patience=-1, n_iters=-1, sample_loss=None, bounds=None, x0=None, n_pre_samples=5,
-                          gp_params=None, random_search=False, alpha=1e-5, epsilon=1e-7):
+                          gp_params=None, random_search=False, alpha=1e-5, epsilon=1e-7, pool_size=1):
     """ bayesian_optimisation
     Uses Gaussian Processes to optimise the loss function `sample_loss`.
     Arguments:
@@ -130,15 +132,32 @@ def bayesian_optimisation(patience=-1, n_iters=-1, sample_loss=None, bounds=None
     best_fitness = 100
 
     n_params = bounds.shape[0]
+    print("Create {} initial points".format(n_pre_samples))
 
     if x0 is None:
         for params in np.random.uniform(bounds[:, 0], bounds[:, 1], (n_pre_samples, bounds.shape[0])):
             x_list.append(params)
-            y_list.append(sample_loss(params))
+
+        if pool_size > 1:
+            p = Pool(pool_size)
+            losses = p.map(sample_loss, x_list)
+            y_list = losses
+            p.terminate()
+        else:
+            for params in x_list:
+                y_list.append(sample_loss(params))
     else:
         for params in x0:
             x_list.append(params)
-            y_list.append(sample_loss(params))
+
+        if pool_size > 1:
+            p = Pool(pool_size)
+            losses = p.map(sample_loss, x_list)
+            y_list = losses
+            p.terminate()
+        else:
+            for params in x_list:
+                y_list.append(sample_loss(params))
 
     xp = np.array(x_list)
     yp = np.array(y_list)
@@ -153,7 +172,9 @@ def bayesian_optimisation(patience=-1, n_iters=-1, sample_loss=None, bounds=None
                                             n_restarts_optimizer=10,
                                             normalize_y=True)
 
+    print("Use bayesian optimization to sample points.")
     while True:
+        print("Iteration: {}".format(iteration + 1))
         model.fit(xp, yp)
 
         # Sample next hyperparameter
@@ -202,11 +223,13 @@ if __name__ == "__main__":
     parser.add_argument('--patience', help='Patience of the searching.', default=10, type=int)
     parser.add_argument('--n_pre', help='Number of initial points.', default=12, type=int)
     parser.add_argument('--random', help='Random search.', default=0, type=int)
+    parser.add_argument('--pool_size', help='Pool size for multiprocessing.', default=1, type=int)
     args = parser.parse_args()
     parameter_dict = {"fitness_function": args.ff,
                       "patience": args.patience,
                       "n_pre": args.patience,
-                      "random": args.random}
+                      "random": args.random,
+                      "pool_size": args.pool_size}
 
     fitness_func = None
     phenotypes_func = None
@@ -228,22 +251,23 @@ if __name__ == "__main__":
                                                   n_iters=-1, sample_loss=sample_loss,
                                                   bounds=bounds,
                                                   n_pre_samples=parameter_dict.get("n_pre"),
-                                                  random_search=parameter_dict.get("random"))
+                                                  random_search=parameter_dict.get("random"),
+                                                  pool_size=parameter_dict.get("pool_size"))
     running_time = time.time() - start
 
     # [print("{}\n{}\n".format(param, fv)) for param, fv in zip(genes, fitness_values)]
 
     num_of_eval = len(fitness_values)
-    max_index = np.argmax(fitness_values)
+    min_index = np.argmin(fitness_values)
 
-    best_dict = fitness_func.genotype_to_phenotype(genes[max_index])
-    phenotypes_dict = phenotypes_func(best_dict, fitness_values[max_index])
+    best_dict = fitness_func.genotype_to_phenotype(genes[min_index])
+    phenotypes_dict = phenotypes_func(best_dict, fitness_values[min_index])
 
     result_dict = {"name": parameter_dict["fitness_function"],
                    "running time": running_time,
                    "number of evaluation": num_of_eval,
-                   "best fitness value": fitness_values[max_index],
-                   "best genes": genes[max_index],
+                   "best fitness value": fitness_values[min_index],
+                   "best genes": genes[min_index],
                    "patience": args.patience,
                    "n_pre": args.patience,
                    "random": args.random

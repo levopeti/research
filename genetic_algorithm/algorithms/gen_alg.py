@@ -135,7 +135,11 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                 self.population.add_individual_to_pop(seed)
 
         step_time = time.time() - start
-        print('{0} time: {1:.2f}s\n'.format(name, step_time))
+
+        if step_time < 120:
+            print('{0} time: {1:.2f}s\n'.format(name, step_time))
+        else:
+            print('{0} time: {1:.2f}min\n'.format(name, step_time // 60))
 
         return step_time, name
 
@@ -213,7 +217,12 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             pbar.finish()
 
         step_time = time.time() - start
-        print('{0} time: {1:.2f}s\n'.format(name, step_time))
+
+        if step_time < 120:
+            print('{0} time: {1:.2f}s\n'.format(name, step_time))
+        else:
+            print('{0} time: {1:.2f}min\n'.format(name, step_time // 60))
+
 
         return step_time, name
 

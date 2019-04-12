@@ -80,21 +80,17 @@ class GeneticAlgorithm(BaseAlgorithmClass):
         start = time.time()
 
         if name == "Crossover":
-            # TODO
-            for _ in range(self.num_of_crossover):
-                self.population.crossover(self.selection_function)
-                name = name[:9] + ' ' + self.config["selection_type"]
+            current_function = partial(self.population.crossover, self.selection_function)
+            name = name[:9] + ' ' + self.config["selection_type"]
             iterator = range(self.num_of_crossover)
         elif name == "Differential evolution":
             current_function = partial(self.population.differential_evolution, self.config["CR"], self.config["F"])
             iterator = range(len(self.population))
         elif name == "Invasive weed":
             current_function = partial(self.population.invasive_weed, self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"])
-            iterator = range(len(self.population[:]))
+            iterator = self.population[:]
         elif name == "Add pure new":
-            # TODO
-            for _ in range(self.num_of_new_individual):
-                self.population.add_new_individual()
+            current_function = self.population.add_new_individual
             iterator = range(self.num_of_new_individual)
         else:
             raise NameError("Bad type of function.")
@@ -119,7 +115,11 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             if name == "Differential evolution":
                 self.population.current_population = members
             else:
-                members = sum(members, [])
+                try:
+                    members = sum(members, [])
+                except TypeError:
+                    pass
+
                 for member in members:
                     self.population.add_individual_to_pop(member)
             p.terminate()
@@ -160,7 +160,7 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                 else:
                     self.progress_bar = True
 
-        if self.fitness_function.name == "fully connected":
+        if self.fitness_function.name in ["fully connected", "convnet"]:
             self.progress_bar = False
 
         if self.pool:

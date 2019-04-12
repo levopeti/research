@@ -78,7 +78,7 @@ class ParticleSwarm(BaseAlgorithmClass):
                 else:
                     self.progress_bar = True
 
-        if self.fitness_function.name == "fully connected":
+        if self.fitness_function.name in ["fully connected", "convnet"]:
             self.progress_bar = False
 
         if self.pool:

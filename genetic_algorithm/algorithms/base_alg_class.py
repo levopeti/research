@@ -126,14 +126,16 @@ class BaseAlgorithmClass(ABC):
 
             self.rank_population()
             sum_of_eval = self.get_all_fitness_eval()
+
+            self.set_personal_bests()
+            self.set_global_best()
+
             self.print_best_values(top_n=4)
             self.step_update_log(name, step_time, sum_of_eval, best_fitness_before_step)
 
             self.callbacks_on_step_end()
 
         self.cut_pop_size()
-        self.set_personal_bests()
-        self.set_global_best()
 
     def run(self):
         """Run (solve) the algorithm."""

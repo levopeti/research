@@ -3,7 +3,7 @@ import os
 import datetime
 import argparse
 
-from fitness_functions.fitness_functions import RastriginFunction, FullyConnected
+from fitness_functions.fitness_function import RastriginFunction, FullyConnected, ConvNet
 from elements.callbacks import LogToFile, RemoteControl, SaveResult, CheckPoint, DimReduction
 from algorithms.pso_alg import ParticleSwarm
 from algorithms.gen_alg import GeneticAlgorithm
@@ -43,6 +43,8 @@ def configure_algorithm(parameters):
         fitness_func = RastriginFunction()
     elif parameters["fitness_function"] == "fc":
         fitness_func = FullyConnected()
+    elif parameters["fitness_function"] == "cn":
+        fitness_func = ConvNet()
 
     callback_list = []
     if "ltf" in parameters["callbacks"] or parameters["all_cb"]:
@@ -78,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('--load', help='File path to checkpoint path to load.', type=str)
     parser.add_argument('--config_path', help='File path to config file.', type=str)
     parser.add_argument('--callbacks', help='List of callbacks to use. ltf: LogToFile, rc: RemoteControl, sr: SaveResult, cp: CheckPoint, dr: DimReduction', default=[], type=str, nargs='+')
-    parser.add_argument('--ff', help='Set the fitness function. rf: Rastrigin, fc: FullyConnected', choices=['rf', 'fc'], default='rf', type=str)
+    parser.add_argument('--ff', help='Set the fitness function. rf: Rastrigin, fc: FullyConnected, cn: ConvNet', choices=['rf', 'fc', 'cn'], default='rf', type=str)
     parser.add_argument('--all_cb', help='Use all of the callbacks.', action='store_true')
 
     # Parse the input parameters to the script

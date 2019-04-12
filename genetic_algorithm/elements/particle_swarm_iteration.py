@@ -9,7 +9,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
 
     def pso_iteration(global_best_genes, particle, **kwargs):
         """Update the velocity vectors and update the genes according to them."""
-        np.random.seed(time.time())
+        np.random.seed(int(time.time()))
 
         def normalization(vector):
             vector = np.array(vector)
@@ -50,7 +50,7 @@ def swarm_iteration_functions(iteration_type, inertia, phi_p, phi_g, norm, c_w, 
         if p is greater than or equal to c_g
         we modify the gene to a random one [0, 1].
         """
-        np.random.seed(time.time())
+        np.random.seed(int(time.time()))
 
         for i in range(particle.chromosome_size):
             p = np.random.rand()

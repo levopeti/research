@@ -151,18 +151,19 @@ class Population(PopulationBase):
 
             p.terminate()
 
-    def add_new_individual(self):
+    def add_new_individual(self, *args, **kwargs):
         """Add new individual with fitness value to the current population."""
 
         individual = Chromosome(self.chromosome_size, self.fitness_function)
-        individual.calculate_fitness()
-        self.add_individual_to_pop(individual)
+        individual.calculate_fitness(**kwargs)
+
+        return individual
 
     def init_global_and_personal_best(self):
         self.global_best_individual.fitness = self.current_population[0].fitness
         self.global_best_individual.genes = self.current_population[0].genes.copy()
 
-    def crossover(self, selection_function):
+    def crossover(self, selection_function, *args, **kwargs):
         """Add new individuals to the population with crossover."""
 
         child_1 = Chromosome(self.chromosome_size, self.fitness_function)
@@ -176,11 +177,10 @@ class Population(PopulationBase):
         child_1.genes = np.concatenate((parent_1.genes[:crossover_index], parent_2.genes[crossover_index:]), axis=None)
         child_2.genes = np.concatenate((parent_2.genes[:crossover_index], parent_1.genes[crossover_index:]), axis=None)
 
-        child_1.calculate_fitness()
-        child_2.calculate_fitness()
+        child_1.calculate_fitness(**kwargs)
+        child_2.calculate_fitness(**kwargs)
 
-        self.add_individual_to_pop(child_1)
-        self.add_individual_to_pop(child_2)
+        return [child_1, child_2]
 
     def differential_evolution(self, CR, F, current_index, **kwargs):
         """Modify the population via methods of differential evolution."""

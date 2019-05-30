@@ -124,15 +124,21 @@ class GeneticAlgorithm(BaseAlgorithmClass):
                     self.population.add_individual_to_pop(member)
             p.terminate()
         else:
-            # TODO
-            seeds = []
-            for member in self.population:
-                seed = self.population.invasive_weed(self.iteration, self.config["iter_max"], self.config["e"], self.config["sigma_init"], self.config["sigma_fin"], self.config["N_min"], self.config["N_max"], member)
-                seeds.append(seed)
-            seeds = sum(seeds, [])
+            members = []
+            for argument in iterator:
+                member = current_function(argument, gpu=0)
+                members.append(member)
 
-            for seed in seeds:
-                self.population.add_individual_to_pop(seed)
+            if name == "Differential evolution":
+                self.population.current_population = members
+            else:
+                try:
+                    members = sum(members, [])
+                except TypeError:
+                    pass
+
+                for member in members:
+                    self.population.add_individual_to_pop(member)
 
         step_time = time.time() - start
 
@@ -222,7 +228,6 @@ class GeneticAlgorithm(BaseAlgorithmClass):
             print('{0} time: {1:.2f}s\n'.format(name, step_time))
         else:
             print('{0} time: {1:.2f}min\n'.format(name, step_time // 60))
-
 
         return step_time, name
 

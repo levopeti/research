@@ -14,19 +14,21 @@ def configure_algorithm(parameters):
         path = parameters.path
     else:
         if parameters["load"]:
-            path = "./logs/{}-{}-{}-load".format(parameters["type"], parameters["fitness_function"], datetime.datetime.now().strftime('%y-%m-%d-%H:%M'))
+            path = "./logs/{}-{}-{}-load".format(parameters["type"], parameters["fitness_function"],
+                                                 datetime.datetime.now().strftime('%y-%m-%d-%H:%M'))
         else:
-            path = "./logs/{}-{}-{}".format(parameters["type"], parameters["fitness_function"], datetime.datetime.now().strftime('%y-%m-%d-%H:%M'))
+            path = "./logs/{}-{}-{}".format(parameters["type"], parameters["fitness_function"],
+                                            datetime.datetime.now().strftime('%y-%m-%d-%H:%M'))
 
     if not os.path.exists(path):
         os.mkdir(path)
 
     if parameters["config_path"]:
         with open(parameters["config_path"], 'r') as config_file:
-            config = yaml.load(config_file)
+            config = yaml.safe_load(config_file)
     else:
         with open("config_tmp.yml", 'r') as config_file:
-            config = yaml.load(config_file)
+            config = yaml.safe_load(config_file)
 
     config_path = os.path.join(path, "config.yml")
     with open(config_path, "w+") as log_file:
@@ -73,14 +75,20 @@ def configure_algorithm(parameters):
 
 
 if __name__ == '__main__':
+    """python app_alg.py --type gen --ff fc --all_cb"""
+
     parser = argparse.ArgumentParser(description="Compile and run a metaheuristic  algorithm.")
 
     parser.add_argument('--dir_path', help='Dir path for logs, checkpoint and result files.', type=str)
     parser.add_argument('--type', help='Type of algorithm.', choices=['gen', 'pso'], type=str)
     parser.add_argument('--load', help='File path to checkpoint path to load.', type=str)
     parser.add_argument('--config_path', help='File path to config file.', type=str)
-    parser.add_argument('--callbacks', help='List of callbacks to use. ltf: LogToFile, rc: RemoteControl, sr: SaveResult, cp: CheckPoint, dr: DimReduction', default=[], type=str, nargs='+')
-    parser.add_argument('--ff', help='Set the fitness function. rf: Rastrigin, fc: FullyConnected, cn: ConvNet', choices=['rf', 'fc', 'cn'], default='rf', type=str)
+    parser.add_argument('--callbacks',
+                        help='List of callbacks to use. ltf: LogToFile, rc: RemoteControl,'
+                             ' sr: SaveResult, cp: CheckPoint, dr: DimReduction',
+                        default=[], type=str, nargs='+')
+    parser.add_argument('--ff', help='Set the fitness function. rf: Rastrigin, fc: FullyConnected, cn: ConvNet',
+                        choices=['rf', 'fc', 'cn'], default='rf', type=str)
     parser.add_argument('--all_cb', help='Use all of the callbacks.', action='store_true')
 
     # Parse the input parameters to the script
